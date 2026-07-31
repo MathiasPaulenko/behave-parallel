@@ -315,9 +315,10 @@ def _make_mock_feature(
     feature.status = status
     feature.keyword = "Feature"
     feature.description = ""
-    feature.location = "features/login.feature:1"
+    feature.line = 1
     feature.tags = []
     feature.duration = 0.5
+    feature.background = None
     feature.scenarios = scenarios or []
     return feature
 
@@ -331,9 +332,10 @@ def _make_mock_scenario(
     scenario = MagicMock()
     scenario.name = name
     scenario.status = status
-    scenario.keyword = "Scenario"
+    scenario.type = "scenario"
     scenario.description = ""
-    scenario.location = "features/login.feature:3"
+    scenario.line = 3
+    scenario.filename = "features/login.feature"
     scenario.tags = []
     scenario.duration = 0.3
     scenario.all_steps = steps or []
@@ -351,7 +353,9 @@ def _make_mock_step(
     step.status = status
     step.keyword = "Given "
     step.duration = 0.1
-    step.location = "features/login.feature:4"
+    step.line = 4
+    step.filename = "features/login.feature"
+    step.error = None
     step.error_message = None
     return step
 

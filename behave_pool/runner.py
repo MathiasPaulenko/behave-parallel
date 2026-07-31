@@ -342,18 +342,24 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         """Merge per-worker JSON reports into a unified Behave-compatible JSON.
 
         Reads each worker's report file (pointed to by WorkerResult.report_path),
-        collects all feature dicts, and writes them as a single JSON array to
-        the path specified by ``--parallel-report``.
-
-        The output format matches Behave's native JSON formatter: a top-level
-        array of feature objects, each with scenarios and steps.
+        collects all feature dicts, computes aggregate statistics, detects the
+        runtime environment, and writes a full behave-modern-json-report
+        ExecutionReport JSON to the path specified by ``--parallel-report``.
 
         After merging, the temporary ``tmp/`` directory is cleaned up.
 
         Args:
             results: Worker results with report paths to merge.
         """
+        import getpass
         import json
+        import os
+        import platform as _platform
+        import socket
+        import subprocess
+        import sys
+        import uuid
+        from datetime import UTC, datetime
 
         all_features: list[dict[str, Any]] = []
 
@@ -370,12 +376,25 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                     "Failed to read worker report %s; skipping.", result.report_path
                 )
 
+        statistics = self._compute_statistics(all_features)
+        environment = self._detect_environment()
+        execution = self._build_execution(results)
+
+        report = {
+            "schemaVersion": "1.1.0",
+            "execution": execution,
+            "statistics": statistics,
+            "environment": environment,
+            "features": all_features,
+            "metadata": {},
+        }
+
         report_path = Path(
             getattr(self.config, "parallel_report", None) or "behave-pool-report.json"
         )
         try:
             report_path.write_text(
-                json.dumps(all_features, indent=2),
+                json.dumps(report, indent=2, ensure_ascii=False),
                 encoding="utf-8",
             )
             logger.info("Unified report written to %s", report_path)
@@ -385,3 +404,189 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         tmp_dir = Path("tmp")
         if tmp_dir.is_dir():
             shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def _compute_statistics(self, features: list[dict[str, Any]]) -> dict[str, Any]:
+        """Compute aggregate statistics from merged feature dicts."""
+        _status_fields = {
+            "passed": "passed",
+            "failed": "failed",
+            "skipped": "skipped",
+            "undefined": "undefined",
+            "pending": "pending",
+        }
+        _failed_statuses = frozenset({"failed", "error", "hook_error", "cleanup_error"})
+
+        feature_count = 0
+        scenario_count = 0
+        step_count = 0
+        counts: dict[str, int] = dict.fromkeys(_status_fields.values(), 0)
+        total_duration = 0.0
+        error_count = 0
+        slowest_step_duration = 0.0
+        all_durations: list[float] = []
+        exception_counts: dict[str, int] = {}
+        by_tag: dict[str, dict[str, Any]] = {}
+
+        for feature in features:
+            feature_count += 1
+            feature_duration = 0.0
+
+            for scenario in feature.get("scenarios", []) or []:
+                scenario_count += 1
+                scenario_duration = 0.0
+
+                for step in scenario.get("steps", []) or []:
+                    step_count += 1
+                    status = step.get("status", "untested")
+                    field_name = _status_fields.get(status)
+                    if field_name is not None:
+                        counts[field_name] += 1
+                    step_duration = step.get("duration", 0.0) or 0.0
+                    scenario_duration += step_duration
+                    if status in _failed_statuses:
+                        error_count += 1
+                    slowest_step_duration = max(slowest_step_duration, step_duration)
+                    error = step.get("error")
+                    if error and error.get("type"):
+                        etype = error["type"]
+                        exception_counts[etype] = exception_counts.get(etype, 0) + 1
+
+                scenario_duration = scenario.get("duration", 0.0) or scenario_duration
+                all_durations.append(scenario_duration)
+                feature_duration += scenario_duration
+
+                scenario_tags = set(scenario.get("tags", []) or [])
+                feature_tags = set(feature.get("tags", []) or [])
+                for tag in scenario_tags | feature_tags:
+                    tag_data = by_tag.setdefault(
+                        tag, {"count": 0, "duration": 0.0}
+                    )
+                    tag_data["count"] += 1
+                    tag_data["duration"] += scenario_duration
+                    s = scenario.get("status", "passed")
+                    if s in tag_data:
+                        tag_data[s] += 1
+
+            total_duration += feature.get("duration", 0.0) or feature_duration
+
+        total_terminal = counts["passed"] + counts["failed"]
+        pass_rate = (counts["passed"] / total_terminal) if total_terminal else 0.0
+        avg_scenario_duration = (
+            sum(all_durations) / len(all_durations) if all_durations else 0.0
+        )
+        common_exception_type = (
+            max(exception_counts, key=lambda k: exception_counts.get(k, 0))
+            if exception_counts
+            else None
+        )
+
+        return {
+            "features": feature_count,
+            "scenarios": scenario_count,
+            "steps": step_count,
+            "passed": counts["passed"],
+            "failed": counts["failed"],
+            "skipped": counts["skipped"],
+            "undefined": counts["undefined"],
+            "pending": counts["pending"],
+            "passRate": round(pass_rate, 6),
+            "duration": round(total_duration, 6),
+            "errorCount": error_count,
+            "totalAttachments": 0,
+            "totalLogs": 0,
+            "slowestStepDuration": round(slowest_step_duration, 6),
+            "avgScenarioDuration": round(avg_scenario_duration, 6),
+            "commonExceptionType": common_exception_type,
+            "byTag": by_tag,
+        }
+
+    def _detect_environment(self) -> dict[str, Any]:
+        """Detect runtime environment for the report."""
+        import os
+        import platform as _platform
+        import socket
+        import subprocess
+        import sys
+
+        env: dict[str, Any] = {}
+
+        env["pythonVersion"] = sys.version.split(" ", 1)[0]
+        env["platform"] = sys.platform
+        env["os"] = _platform.system() or "Unknown"
+        env["osVersion"] = _platform.release() or "Unknown"
+
+        try:
+            env["hostname"] = socket.gethostname() or "unknown"
+        except Exception:
+            env["hostname"] = "unknown"
+
+        ci_env = os.environ
+        if ci_env.get("GITHUB_ACTIONS") == "true":
+            env["ciProvider"] = "github-actions"
+        elif ci_env.get("GITLAB_CI"):
+            env["ciProvider"] = "gitlab-ci"
+        elif ci_env.get("JENKINS_URL"):
+            env["ciProvider"] = "jenkins"
+        elif ci_env.get("CI"):
+            env["ciProvider"] = "ci"
+        else:
+            env["ciProvider"] = None
+
+        env["cwd"] = os.getcwd() or None
+        env["command"] = " ".join(sys.argv) or None
+
+        try:
+            import getpass
+
+            env["user"] = getpass.getuser()
+        except Exception:
+            env["user"] = None
+
+        env["cpuCount"] = os.cpu_count() or None
+
+        try:
+            import behave
+
+            env["behaveVersion"] = str(getattr(behave, "__version__", "") or "")
+        except Exception:
+            env["behaveVersion"] = None
+
+        git_info: dict[str, str] = {}
+        try:
+            for key, cmd in [
+                ("branch", ["git", "rev-parse", "--abbrev-ref", "HEAD"]),
+                ("commit", ["git", "rev-parse", "--short", "HEAD"]),
+                ("remote", ["git", "remote", "get-url", "origin"]),
+            ]:
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=2, check=False
+                )
+                if result.returncode == 0:
+                    git_info[key] = result.stdout.strip()
+        except Exception:
+            pass
+
+        env["gitBranch"] = git_info.get("branch")
+        env["gitCommit"] = git_info.get("commit")
+        env["gitRemote"] = git_info.get("remote")
+
+        return env
+
+    def _build_execution(self, results: list[WorkerResult]) -> dict[str, Any]:
+        """Build the execution metadata block."""
+        import uuid
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        total_duration = sum(r.duration for r in results)
+        any_failed = any(r.failed for r in results)
+
+        return {
+            "executionId": f"exec-{uuid.uuid4().hex}",
+            "status": "failed" if any_failed else "passed",
+            "duration": round(total_duration, 6),
+            "startTime": now,
+            "endTime": now,
+            "command": None,
+            "workingDirectory": None,
+        }

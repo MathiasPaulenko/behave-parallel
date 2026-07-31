@@ -189,59 +189,137 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
             or len(self.undefined_steps) > undefined_steps_initial_size
         )
 
+    def _serialize_location(self, obj: Any) -> dict[str, Any] | None:
+        """Extract a location dict from a Behave model object."""
+        filename = getattr(obj, "filename", None)
+        line = getattr(obj, "line", None)
+        if filename is None and line is None:
+            loc = getattr(obj, "location", None)
+            if loc is not None:
+                filename = getattr(loc, "filename", None) or str(loc)
+                line = getattr(loc, "line", None)
+        if filename is None and line is None:
+            return None
+        result: dict[str, Any] = {
+            "filename": str(filename or ""),
+            "line": int(line or 0),
+        }
+        return result
+
+    def _map_status(self, raw: Any) -> str:
+        """Map a Behave status to a canonical string."""
+        if raw is None:
+            return "untested"
+        name = getattr(raw, "name", None) or str(raw)
+        return name.lower().strip() or "passed"
+
+    def _serialize_error(self, step: Any) -> dict[str, Any] | None:
+        """Extract an error dict from a Behave step."""
+        exc = getattr(step, "error", None) or getattr(step, "exception", None)
+        if exc is not None and isinstance(exc, BaseException):
+            import traceback as _tb
+
+            return {
+                "id": f"err-{id(step):x}",
+                "type": type(exc).__name__,
+                "message": str(exc),
+                "traceback": "".join(_tb.format_exception(type(exc), exc, exc.__traceback__)),
+                "location": self._serialize_location(step),
+            }
+        error_message = getattr(step, "error_message", None)
+        if error_message:
+            return {
+                "id": f"err-{id(step):x}",
+                "type": "Error",
+                "message": str(error_message),
+                "traceback": str(getattr(step, "exc_traceback", None) or error_message),
+                "location": self._serialize_location(step),
+            }
+        return None
+
     def _serialize_step(self, step: Any) -> dict[str, Any]:
-        """Convert a Behave Step model to a JSON-compatible dict."""
+        """Convert a Behave Step to a behave-modern-json-report step dict."""
         return {
-            "keyword": getattr(step, "keyword", ""),
-            "name": getattr(step, "name", ""),
-            "status": str(getattr(step, "status", "skipped")),
-            "duration": getattr(step, "duration", None),
-            "location": str(getattr(step, "location", "")),
-            "error_message": getattr(step, "error_message", None),
+            "id": f"step-{id(step):x}",
+            "keyword": str(getattr(step, "keyword", "")),
+            "text": str(getattr(step, "name", "") or getattr(step, "text", "")),
+            "status": self._map_status(getattr(step, "status", "passed")),
+            "duration": float(getattr(step, "duration", 0.0) or 0.0),
+            "location": self._serialize_location(step),
+            "error": self._serialize_error(step),
+            "attachments": [],
+            "logs": [],
         }
 
-    def _serialize_scenario(self, scenario: Any) -> dict[str, Any]:
-        """Convert a Behave Scenario model to a JSON-compatible dict."""
-        steps = []
-        for step in getattr(scenario, "all_steps", None) or getattr(scenario, "steps", []) or []:
-            steps.append(self._serialize_step(step))
+    def _serialize_background(self, background: Any) -> dict[str, Any]:
+        """Convert a Behave Background to a behave-modern-json-report background dict."""
+        steps = [self._serialize_step(s) for s in (getattr(background, "steps", None) or [])]
         return {
-            "keyword": getattr(scenario, "keyword", "Scenario"),
-            "name": getattr(scenario, "name", ""),
-            "description": getattr(scenario, "description", ""),
-            "location": str(getattr(scenario, "location", "")),
-            "tags": [str(t) for t in (getattr(scenario, "tags", None) or [])],
-            "status": str(getattr(scenario, "status", "skipped")),
-            "duration": getattr(scenario, "duration", None),
+            "id": f"bg-{id(background):x}",
+            "name": str(getattr(background, "name", "") or ""),
+            "keyword": str(getattr(background, "keyword", "Background") or "Background"),
+            "location": self._serialize_location(background),
             "steps": steps,
         }
 
-    def _serialize_feature(self, feature: Any) -> dict[str, Any]:
-        """Convert a Behave Feature model to a JSON-compatible dict.
+    def _serialize_scenario(self, scenario: Any, feature_id: str) -> dict[str, Any]:
+        """Convert a Behave Scenario to a behave-modern-json-report scenario dict."""
+        steps = []
+        for step in getattr(scenario, "all_steps", None) or getattr(scenario, "steps", []) or []:
+            steps.append(self._serialize_step(step))
+        scenario_type = str(getattr(scenario, "type", "") or "")
+        is_outline = scenario_type in ("scenario_outline", "outline")
+        return {
+            "id": f"scenario-{id(scenario):x}",
+            "name": str(getattr(scenario, "name", "") or "<unnamed>"),
+            "featureId": feature_id,
+            "description": str(getattr(scenario, "description", "") or "") or None,
+            "tags": [str(t) for t in (getattr(scenario, "tags", None) or [])],
+            "examples": [],
+            "location": self._serialize_location(scenario),
+            "status": self._map_status(getattr(scenario, "status", "passed")),
+            "duration": float(getattr(scenario, "duration", 0.0) or 0.0),
+            "steps": steps,
+            "background": None,
+            "rule": None,
+            "isOutline": is_outline,
+            "outlineName": None,
+            "retry": None,
+        }
 
-        The output matches the structure of Behave's native JSON formatter so
-        that downstream tools can consume it without modification.
+    def _serialize_feature(self, feature: Any) -> dict[str, Any]:
+        """Convert a Behave Feature to a behave-modern-json-report feature dict.
+
+        The output matches the feature structure of behave-modern-json-report's
+        ExecutionReport schema so downstream tools can consume it directly.
         """
+        feature_id = f"feature-{id(feature):x}"
         scenarios = []
         for scenario in getattr(feature, "scenarios", None) or []:
-            scenarios.append(self._serialize_scenario(scenario))
+            scenarios.append(self._serialize_scenario(scenario, feature_id))
+        background = None
+        behave_background = getattr(feature, "background", None)
+        if behave_background:
+            background = self._serialize_background(behave_background)
         return {
-            "keyword": getattr(feature, "keyword", "Feature"),
-            "name": getattr(feature, "name", ""),
-            "description": getattr(feature, "description", ""),
-            "location": str(getattr(feature, "location", "")),
-            "filename": getattr(feature, "filename", ""),
+            "id": feature_id,
+            "name": str(getattr(feature, "name", "") or "<unnamed>"),
+            "description": str(getattr(feature, "description", "") or "") or None,
             "tags": [str(t) for t in (getattr(feature, "tags", None) or [])],
-            "status": str(getattr(feature, "status", "passed")),
-            "duration": getattr(feature, "duration", None),
+            "filename": getattr(feature, "filename", None),
+            "line": getattr(feature, "line", None),
+            "status": self._map_status(getattr(feature, "status", "passed")),
+            "duration": float(getattr(feature, "duration", 0.0) or 0.0),
             "scenarios": scenarios,
+            "background": background,
         }
 
     def _write_report(self, unit: WorkUnit) -> str | None:
-        """Write a full JSON report for the work unit.
+        """Write a JSON report for the work unit in behave-modern-json-report format.
 
-        The report includes feature, scenario, and step-level results
-        compatible with Behave's native JSON format.
+        Each report contains a list of feature dicts matching the
+        behave-modern-json-report ExecutionReport feature schema. The
+        coordinator merges these into a full ExecutionReport.
 
         Returns:
             Path to the report file, or None if writing failed.

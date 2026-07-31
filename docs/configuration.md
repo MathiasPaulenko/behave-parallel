@@ -134,49 +134,83 @@ behave --runner=parallel --parallel 4 \
     features/
 ```
 
-The report is a JSON array of feature objects, matching the structure of
-Behave's native JSON formatter:
+The report follows the **behave-modern-json-report** `ExecutionReport` schema
+(v1.1.0), a rich structured format with execution metadata, statistics,
+environment info, and full feature/scenario/step details:
 
 ```json
-[
-  {
-    "keyword": "Feature",
-    "name": "Login",
-    "description": "User authentication flows",
-    "filename": "features/login.feature",
-    "location": "features/login.feature:1",
-    "tags": ["@smoke"],
+{
+  "schemaVersion": "1.1.0",
+  "execution": {
+    "executionId": "exec-a1b2c3...",
     "status": "passed",
-    "duration": 1.23,
-    "scenarios": [
-      {
-        "keyword": "Scenario",
-        "name": "Successful login",
-        "description": "",
-        "location": "features/login.feature:3",
-        "tags": ["@smoke"],
-        "status": "passed",
-        "duration": 0.8,
-        "steps": [
-          {
-            "keyword": "Given ",
-            "name": "I am on the login page",
-            "status": "passed",
-            "duration": 0.2,
-            "location": "features/login.feature:4",
-            "error_message": null
-          }
-        ]
-      }
-    ]
-  }
-]
+    "duration": 12.345,
+    "startTime": "2024-01-15T10:30:00.123Z",
+    "endTime": "2024-01-15T10:30:12.468Z"
+  },
+  "statistics": {
+    "features": 3,
+    "scenarios": 15,
+    "steps": 42,
+    "passed": 40,
+    "failed": 0,
+    "skipped": 2,
+    "passRate": 1.0,
+    "duration": 12.345,
+    "byTag": {
+      "@smoke": { "count": 5, "duration": 3.2, "passed": 5 }
+    }
+  },
+  "environment": {
+    "pythonVersion": "3.12.1",
+    "behaveVersion": "1.2.6",
+    "platform": "linux",
+    "os": "Linux",
+    "ciProvider": "github-actions",
+    "gitBranch": "main",
+    "gitCommit": "a1b2c3d"
+  },
+  "features": [
+    {
+      "id": "feature-abc123",
+      "name": "Login",
+      "description": "User authentication flows",
+      "filename": "features/login.feature",
+      "line": 1,
+      "tags": ["@smoke"],
+      "status": "passed",
+      "duration": 1.23,
+      "scenarios": [
+        {
+          "id": "scenario-def456",
+          "name": "Successful login",
+          "featureId": "feature-abc123",
+          "status": "passed",
+          "duration": 0.8,
+          "steps": [
+            {
+              "id": "step-ghi789",
+              "keyword": "Given ",
+              "text": "I am on the login page",
+              "status": "passed",
+              "duration": 0.2,
+              "error": null,
+              "attachments": [],
+              "logs": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {}
+}
 ```
 
 !!! note "Downstream tools"
-    The unified report is compatible with Behave's native JSON format.
-    Tools like `behave-modern-json-report` can consume it directly to
-    generate HTML reports from parallel runs.
+    The report uses the same schema as `behave-modern-json-report`, so any
+    tool built for that ecosystem (HTML formatters, dashboards, AI analyzers)
+    can consume the parallel report directly — no conversion needed.
 
 ## behave.ini configuration
 
