@@ -351,15 +351,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         Args:
             results: Worker results with report paths to merge.
         """
-        import getpass
         import json
-        import os
-        import platform as _platform
-        import socket
-        import subprocess
-        import sys
-        import uuid
-        from datetime import UTC, datetime
 
         all_features: list[dict[str, Any]] = []
 
@@ -459,7 +451,22 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                 feature_tags = set(feature.get("tags", []) or [])
                 for tag in scenario_tags | feature_tags:
                     tag_data = by_tag.setdefault(
-                        tag, {"count": 0, "duration": 0.0}
+                        tag,
+                        {
+                            "count": 0,
+                            "duration": 0.0,
+                            "passed": 0,
+                            "failed": 0,
+                            "skipped": 0,
+                            "undefined": 0,
+                            "pending": 0,
+                            "untested": 0,
+                            "error": 0,
+                            "hook_error": 0,
+                            "cleanup_error": 0,
+                            "xfailed": 0,
+                            "xpassed": 0,
+                        },
                     )
                     tag_data["count"] += 1
                     tag_data["duration"] += scenario_duration
@@ -480,7 +487,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             else None
         )
 
-        return {
+        stats: dict[str, Any] = {
             "features": feature_count,
             "scenarios": scenario_count,
             "steps": step_count,
@@ -496,9 +503,11 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             "totalLogs": 0,
             "slowestStepDuration": round(slowest_step_duration, 6),
             "avgScenarioDuration": round(avg_scenario_duration, 6),
-            "commonExceptionType": common_exception_type,
             "byTag": by_tag,
         }
+        if common_exception_type is not None:
+            stats["commonExceptionType"] = common_exception_type
+        return stats
 
     def _detect_environment(self) -> dict[str, Any]:
         """Detect runtime environment for the report."""
@@ -529,27 +538,34 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             env["ciProvider"] = "jenkins"
         elif ci_env.get("CI"):
             env["ciProvider"] = "ci"
-        else:
-            env["ciProvider"] = None
 
-        env["cwd"] = os.getcwd() or None
-        env["command"] = " ".join(sys.argv) or None
+        cwd = os.getcwd()
+        if cwd:
+            env["cwd"] = cwd
+
+        cmd = " ".join(sys.argv)
+        if cmd:
+            env["command"] = cmd
 
         try:
             import getpass
 
             env["user"] = getpass.getuser()
         except Exception:
-            env["user"] = None
+            pass
 
-        env["cpuCount"] = os.cpu_count() or None
+        cpu = os.cpu_count()
+        if cpu:
+            env["cpuCount"] = cpu
 
         try:
             import behave
 
-            env["behaveVersion"] = str(getattr(behave, "__version__", "") or "")
+            bv = str(getattr(behave, "__version__", "") or "")
+            if bv:
+                env["behaveVersion"] = bv
         except Exception:
-            env["behaveVersion"] = None
+            pass
 
         git_info: dict[str, str] = {}
         try:
@@ -566,9 +582,12 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         except Exception:
             pass
 
-        env["gitBranch"] = git_info.get("branch")
-        env["gitCommit"] = git_info.get("commit")
-        env["gitRemote"] = git_info.get("remote")
+        if git_info.get("branch"):
+            env["gitBranch"] = git_info["branch"]
+        if git_info.get("commit"):
+            env["gitCommit"] = git_info["commit"]
+        if git_info.get("remote"):
+            env["gitRemote"] = git_info["remote"]
 
         return env
 
@@ -581,12 +600,11 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         total_duration = sum(r.duration for r in results)
         any_failed = any(r.failed for r in results)
 
-        return {
+        execution: dict[str, Any] = {
             "executionId": f"exec-{uuid.uuid4().hex}",
             "status": "failed" if any_failed else "passed",
             "duration": round(total_duration, 6),
             "startTime": now,
             "endTime": now,
-            "command": None,
-            "workingDirectory": None,
         }
+        return execution
