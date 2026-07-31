@@ -33,12 +33,12 @@ ecosystem = [
     "behave-modern-json-report>=1.0",
 ]
 dev = [
-    "pytest>=8.0",
-    "pytest-cov>=5.0",
-    "ruff>=0.5",
-    "mypy>=1.10",
-    "build>=1.0",
-    "pre-commit>=3.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.0",
+    "mypy>=2.3.0",
+    "build>=1.5.0",
+    "pre-commit>=4.6.1",
 ]
 docs = [
     "mkdocs>=1.6",
