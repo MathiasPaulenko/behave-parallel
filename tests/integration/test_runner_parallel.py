@@ -25,7 +25,7 @@ def _run_behave(parallel: int | None = None) -> tuple[int, str, str]:
         "-m",
         "behave",
         "--runner",
-        "behave_parallel:ParallelRunner",
+        "behave_pool:ParallelRunner",
         str(FEATURES_DIR),
     ]
     if parallel is not None:
@@ -51,7 +51,7 @@ class TestParallelRunnerSequential:
 
     def teardown_method(self) -> None:
         """Clean up timing file after each test."""
-        timing_file = FIXTURES_DIR / ".behave-parallel-timing.json"
+        timing_file = FIXTURES_DIR / ".behave-pool-timing.json"
         if timing_file.exists():
             timing_file.unlink()
 
@@ -72,7 +72,7 @@ class TestParallelRunnerParallel:
 
     def teardown_method(self) -> None:
         """Clean up timing file after each test."""
-        timing_file = FIXTURES_DIR / ".behave-parallel-timing.json"
+        timing_file = FIXTURES_DIR / ".behave-pool-timing.json"
         if timing_file.exists():
             timing_file.unlink()
 
@@ -97,7 +97,7 @@ class TestParallelRunnerNoParallel:
 
     def teardown_method(self) -> None:
         """Clean up timing file after each test."""
-        timing_file = FIXTURES_DIR / ".behave-parallel-timing.json"
+        timing_file = FIXTURES_DIR / ".behave-pool-timing.json"
         if timing_file.exists():
             timing_file.unlink()
 

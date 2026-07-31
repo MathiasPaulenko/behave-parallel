@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from behave_parallel.result import WorkerResult
+from behave_pool.result import WorkerResult
 
 
 class TestWorkerResultConstruction:

@@ -1,4 +1,4 @@
-# Contributing to behave-parallel
+# Contributing to behave-pool
 
 Thanks for your interest in contributing! Please read our
 [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
@@ -6,8 +6,8 @@ Thanks for your interest in contributing! Please read our
 ## Setup
 
 ```bash
-git clone https://github.com/MathiasPaulenko/behave-parallel.git
-cd behave-parallel
+git clone https://github.com/MathiasPaulenko/behave-pool.git
+cd behave-pool
 make dev
 pre-commit install
 ```

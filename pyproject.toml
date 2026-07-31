@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "behave-parallel"
-version = "1.0.0"
+name = "behave-pool"
+version = "1.1.1"
 description = "Parallel test execution for Behave BDD via native ITestRunner."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,25 +42,25 @@ dev = [
 ]
 docs = [
     "mkdocs>=1.6",
-    "mkdocs-material>=9.5",
+    "mkdocs-material>=9.7.7",
     "mkdocstrings[python]>=0.24",
 ]
 
 [project.urls]
-Documentation = "https://mathiaspaulenko.github.io/behave-parallel/"
-Homepage = "https://github.com/MathiasPaulenko/behave-parallel"
-Repository = "https://github.com/MathiasPaulenko/behave-parallel"
-Issues = "https://github.com/MathiasPaulenko/behave-parallel/issues"
-Changelog = "https://github.com/MathiasPaulenko/behave-parallel/blob/main/CHANGELOG.md"
+Documentation = "https://mathiaspaulenko.github.io/behave-pool/"
+Homepage = "https://github.com/MathiasPaulenko/behave-pool"
+Repository = "https://github.com/MathiasPaulenko/behave-pool"
+Issues = "https://github.com/MathiasPaulenko/behave-pool/issues"
+Changelog = "https://github.com/MathiasPaulenko/behave-pool/blob/main/CHANGELOG.md"
 
 [project.entry-points."behave.runners"]
-behave_parallel = "behave_parallel:ParallelRunner"
+behave_pool = "behave_pool:ParallelRunner"
 
 [tool.hatch.build.targets.wheel]
-packages = ["behave_parallel"]
+packages = ["behave_pool"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"behave_parallel/py.typed" = "behave_parallel/py.typed"
+"behave_pool/py.typed" = "behave_pool/py.typed"
 
 [tool.ruff]
 target-version = "py311"
@@ -71,7 +71,7 @@ extend-exclude = ["tests/fixtures"]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["behave_parallel"]
+known-first-party = ["behave_pool"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -89,7 +89,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["behave_parallel"]
+source = ["behave_pool"]
 omit = ["*/tests/*"]
 
 [tool.coverage.report]

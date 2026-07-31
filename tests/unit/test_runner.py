@@ -11,11 +11,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from behave_parallel.config import ConfigSnapshot
-from behave_parallel.result import WorkerResult
-from behave_parallel.runner import ParallelRunner
-from behave_parallel.timing import TimingStore
-from behave_parallel.work_unit import WorkUnit
+from behave_pool.config import ConfigSnapshot
+from behave_pool.result import WorkerResult
+from behave_pool.runner import ParallelRunner
+from behave_pool.timing import TimingStore
+from behave_pool.work_unit import WorkUnit
 
 
 @pytest.fixture
@@ -36,14 +36,14 @@ def mock_config() -> MagicMock:
     config.dry_run = False
     config.use_nested_step_modules = False
     config.parallel_balance = "lpt"
-    config.parallel_timing_file = ".behave-parallel-timing.json"
+    config.parallel_timing_file = ".behave-pool-timing.json"
     config.exclude = MagicMock(return_value=False)
     return config
 
 
 class TestParallelRunnerInit:
     def test_init_calls_add_parallel_options(self, mock_config: MagicMock) -> None:
-        with patch("behave_parallel.runner.add_parallel_options") as mock_add:
+        with patch("behave_pool.runner.add_parallel_options") as mock_add:
             ParallelRunner(mock_config)
             mock_add.assert_called_once_with(mock_config)
 
@@ -93,8 +93,8 @@ class TestRunSequentialInternals:
             patch.object(runner, "load_hooks"),
             patch.object(runner, "load_step_definitions"),
             patch.object(runner, "feature_locations", return_value=["features/login.feature"]),
-            patch("behave_parallel.runner.parse_features", return_value=[MagicMock()]),
-            patch("behave_parallel.runner.make_formatters", return_value=[]),
+            patch("behave_pool.runner.parse_features", return_value=[MagicMock()]),
+            patch("behave_pool.runner.make_formatters", return_value=[]),
             patch.object(runner, "run_model", return_value=False),
         ):
             result = runner._run_sequential()
@@ -124,8 +124,8 @@ class TestPlan:
                 "feature_locations",
                 return_value=["features/login.feature", "features/checkout.feature"],
             ),
-            patch("behave_parallel.runner.parse_features", return_value=[feature1, feature2]),
-            patch("behave_parallel.runner.WorkUnitIterator") as mock_iter_cls,
+            patch("behave_pool.runner.parse_features", return_value=[feature1, feature2]),
+            patch("behave_pool.runner.WorkUnitIterator") as mock_iter_cls,
         ):
             mock_iter = MagicMock()
             mock_iter_cls.for_scheme.return_value = mock_iter
@@ -276,7 +276,7 @@ class TestDispatch:
         ]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_workers = [MagicMock() for _ in range(3)]
@@ -314,7 +314,7 @@ class TestDispatch:
         ]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_workers = [MagicMock() for _ in range(1)]
@@ -349,7 +349,7 @@ class TestDispatch:
         serial_batch = [WorkUnit(id="s1", config=snap, feature_path="b.feature", tags=["serial"])]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_workers = [MagicMock() for _ in range(3)]
@@ -382,7 +382,7 @@ class TestDispatch:
         stop_event = multiprocessing.Event()
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             dispatched = runner._dispatch(task_queue, result_queue, stop_event, [], [])
@@ -413,7 +413,7 @@ class TestDispatch:
         serial_batch = [WorkUnit(id="s1", config=snap, feature_path="b.feature", tags=["serial"])]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_workers = [MagicMock() for _ in range(2)]
@@ -455,7 +455,7 @@ class TestDispatch:
         parallel_batch = [WorkUnit(id="u1", config=snap, feature_path="a.feature")]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_workers = [MagicMock() for _ in range(2)]
@@ -495,7 +495,7 @@ class TestDispatch:
         serial_batch = [WorkUnit(id="s1", config=snap, feature_path="a.feature", tags=["serial"])]
 
         with (
-            patch("behave_parallel.runner.WorkerProcess") as mock_wp_cls,
+            patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
             mock_worker = MagicMock()
@@ -545,8 +545,8 @@ class TestCollect:
         result_queue: Any = queue.Queue()
 
         with (
-            patch("behave_parallel.runner.os.path.isdir", return_value=True),
-            patch("behave_parallel.runner.shutil.rmtree") as mock_rmtree,
+            patch("behave_pool.runner.os.path.isdir", return_value=True),
+            patch("behave_pool.runner.shutil.rmtree") as mock_rmtree,
         ):
             runner._collect(result_queue, [])
             mock_rmtree.assert_called_once()
@@ -883,8 +883,8 @@ class TestSortByDurationNoneTimingFile:
         """_sort_by_duration must not raise when config.parallel_timing_file
         is None; it should fall back to the default timing file path.
         """
-        from behave_parallel.config import ConfigSnapshot
-        from behave_parallel.work_unit import WorkUnit
+        from behave_pool.config import ConfigSnapshot
+        from behave_pool.work_unit import WorkUnit
 
         mock_config.parallel_timing_file = None
         mock_config.parallel_balance = "lpt"

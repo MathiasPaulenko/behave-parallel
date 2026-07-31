@@ -1,12 +1,12 @@
-"""behave-parallel: parallel test execution for Behave BDD via native ITestRunner.
+"""behave-pool: parallel test execution for Behave BDD via native ITestRunner.
 
 Public API:
 
-    from behave_parallel import ParallelRunner
+    from behave_pool import ParallelRunner
 
     # Register in behave.ini:
     # [behave.runners]
-    # parallel = behave_parallel:ParallelRunner
+    # parallel = behave_pool:ParallelRunner
 
     # Then run:
     # behave --runner=parallel --parallel 4 --parallel-scheme feature features/
@@ -14,8 +14,8 @@ Public API:
 
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 
-from behave_parallel.runner import ParallelRunner
+from behave_pool.runner import ParallelRunner
 
 __all__ = ["ParallelRunner", "__version__"]

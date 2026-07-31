@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from behave_parallel.timing import TimingStore
+from behave_pool.timing import TimingStore
 
 
 class TestLoad:
@@ -260,7 +260,7 @@ class TestSaveErrorHandling:
         timing_file = tmp_path / "timing.json"
         store = TimingStore(path=timing_file)
         with (
-            patch("behave_parallel.timing.os.replace", side_effect=OSError("replace failed")),
+            patch("behave_pool.timing.os.replace", side_effect=OSError("replace failed")),
             pytest.raises(OSError, match="replace failed"),
         ):
             store.save({"u1": 1.0})
