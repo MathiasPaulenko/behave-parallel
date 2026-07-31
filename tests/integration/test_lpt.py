@@ -13,7 +13,7 @@ import pytest
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "timing"
 FEATURES_DIR = FIXTURES_DIR / "features"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-TIMING_FILE_NAME = ".behave-parallel-timing.json"
+TIMING_FILE_NAME = ".behave-pool-timing.json"
 
 
 def _run_behave(parallel: int) -> tuple[int, str, str]:
@@ -30,7 +30,7 @@ def _run_behave(parallel: int) -> tuple[int, str, str]:
         "-m",
         "behave",
         "--runner",
-        "behave_parallel:ParallelRunner",
+        "behave_pool:ParallelRunner",
         "--parallel",
         str(parallel),
         str(FEATURES_DIR),

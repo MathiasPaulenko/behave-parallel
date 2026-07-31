@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from behave_parallel.config import ConfigSnapshot
+from behave_pool.config import ConfigSnapshot
 
 
 @dataclass(frozen=True)

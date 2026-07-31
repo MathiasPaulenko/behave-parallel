@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from behave.model import Feature, Scenario
 
-from behave_parallel.iterator import FeatureIterator, WorkUnitIterator
+from behave_pool.iterator import FeatureIterator, WorkUnitIterator
 
 
 def _make_feature(

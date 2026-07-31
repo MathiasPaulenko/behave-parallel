@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from behave_parallel.work_unit import WorkUnit
+from behave_pool.work_unit import WorkUnit
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ class TestWorkUnitPicklable:
     def test_work_unit_with_config_snapshot_picklable(self) -> None:
         import pickle
 
-        from behave_parallel.config import ConfigSnapshot
+        from behave_pool.config import ConfigSnapshot
 
         snap = ConfigSnapshot(
             base_dir="features",
@@ -108,7 +108,7 @@ class TestWorkUnitPicklable:
     def test_work_unit_minimal_picklable(self) -> None:
         import pickle
 
-        from behave_parallel.config import ConfigSnapshot
+        from behave_pool.config import ConfigSnapshot
 
         snap = ConfigSnapshot(
             base_dir="features",
