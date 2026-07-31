@@ -16,7 +16,7 @@ def test_version_attribute() -> None:
     """behave_parallel must expose __version__."""
     assert hasattr(behave_parallel, "__version__")
     assert isinstance(behave_parallel.__version__, str)
-    assert behave_parallel.__version__ == "0.1.0"
+    assert behave_parallel.__version__ == "1.0.0"
 
 
 def test_all_exports() -> None:

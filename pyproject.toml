@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "behave-parallel"
-version = "0.1.0"
+version = "1.0.0"
 description = "Parallel test execution for Behave BDD via native ITestRunner."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Mathias Paulenko" }]
 keywords = ["behave", "bdd", "parallel", "multiprocessing", "testing", "runner"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
