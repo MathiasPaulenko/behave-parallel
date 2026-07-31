@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import multiprocessing
-import os
 import queue
 import shutil
 import time
@@ -364,9 +363,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                     data = json.loads(report_file.read_text(encoding="utf-8"))
                     all_features.extend(data.get("features", []))
             except Exception:
-                logger.warning(
-                    "Failed to read worker report %s; skipping.", result.report_path
-                )
+                logger.warning("Failed to read worker report %s; skipping.", result.report_path)
 
         statistics = self._compute_statistics(all_features)
         environment = self._detect_environment()
@@ -478,9 +475,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         total_terminal = counts["passed"] + counts["failed"]
         pass_rate = (counts["passed"] / total_terminal) if total_terminal else 0.0
-        avg_scenario_duration = (
-            sum(all_durations) / len(all_durations) if all_durations else 0.0
-        )
+        avg_scenario_duration = sum(all_durations) / len(all_durations) if all_durations else 0.0
         common_exception_type = (
             max(exception_counts, key=lambda k: exception_counts.get(k, 0))
             if exception_counts
@@ -569,13 +564,13 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         git_info: dict[str, str] = {}
         try:
-            for key, cmd in [
+            for key, git_cmd in [
                 ("branch", ["git", "rev-parse", "--abbrev-ref", "HEAD"]),
                 ("commit", ["git", "rev-parse", "--short", "HEAD"]),
                 ("remote", ["git", "remote", "get-url", "origin"]),
             ]:
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=2, check=False
+                    git_cmd, capture_output=True, text=True, timeout=2, check=False
                 )
                 if result.returncode == 0:
                     git_info[key] = result.stdout.strip()

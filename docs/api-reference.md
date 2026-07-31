@@ -32,9 +32,9 @@ be safely sent to worker processes via `spawn`.
 from behave_pool.config import ConfigSnapshot, snapshot_config
 
 snapshot = snapshot_config(config)
-print(snapshot.parallel)        # 4
-print(snapshot.parallel_scheme) # "feature"
-print(snapshot.base_dir)        # "features"
+print(snapshot.parallel)  # 4
+print(snapshot.parallel_scheme)  # "feature"
+print(snapshot.base_dir)  # "features"
 ```
 
 ::: behave_pool.config
@@ -73,7 +73,7 @@ result = WorkerResult(
     failed=False,
     duration=1.23,
 )
-print(result.failed)    # False
+print(result.failed)  # False
 print(result.duration)  # 1.23
 ```
 

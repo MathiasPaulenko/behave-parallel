@@ -545,7 +545,7 @@ class TestCollect:
         result_queue: Any = queue.Queue()
 
         with (
-            patch("behave_pool.runner.os.path.isdir", return_value=True),
+            patch("behave_pool.runner.Path.is_dir", return_value=True),
             patch("behave_pool.runner.shutil.rmtree") as mock_rmtree,
         ):
             runner._collect(result_queue, [])

@@ -333,9 +333,7 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
                 "worker_id": self.worker_id,
                 "work_unit_id": unit.id,
                 "features": [self._serialize_feature(f) for f in self.features],
-                "failed": any(
-                    getattr(f, "status", "passed") == "failed" for f in self.features
-                ),
+                "failed": any(getattr(f, "status", "passed") == "failed" for f in self.features),
             }
             report_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
             return str(report_path)

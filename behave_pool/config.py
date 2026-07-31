@@ -112,9 +112,7 @@ def snapshot_config(config: Configuration) -> ConfigSnapshot:
         parallel_timing_file=str(
             getattr(config, "parallel_timing_file", None) or ".behave-pool-timing.json"
         ),
-        parallel_report=str(
-            getattr(config, "parallel_report", None) or "behave-pool-report.json"
-        ),
+        parallel_report=str(getattr(config, "parallel_report", None) or "behave-pool-report.json"),
         dry_run=config.dry_run,
         use_nested_step_modules=getattr(config, "use_nested_step_modules", False),
     )
