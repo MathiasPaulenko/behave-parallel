@@ -2,6 +2,185 @@
 
 Complete worked examples showing how to use `behave-pool` in real projects.
 
+## Example 0: Calculator (bundled)
+
+A complete working example is included in the repository at
+[`examples/calculator/`](https://github.com/MathiasPaulenko/behave-pool/tree/main/examples/calculator).
+It demonstrates parallel execution, `@serial` scenarios, and the unified JSON report.
+
+### Project structure
+
+```text
+examples/calculator/
+├── behave.ini
+├── features/
+│   ├── calculator.feature      # Feature with parallel and @serial scenarios
+│   └── steps/
+│       └── calculator_steps.py # Step definitions
+```
+
+### `behave.ini`
+
+```ini
+[behave]
+parallel = 4
+parallel-scheme = feature
+parallel-balance = lpt
+parallel-report = behave-pool-report.json
+
+[behave.runners]
+parallel = behave_pool:ParallelRunner
+```
+
+### `features/calculator.feature`
+
+```gherkin
+Feature: Calculator
+
+  Scenario: Add two numbers
+    Given I have a calculator
+    When I add 2 and 3
+    Then the result should be 5
+
+  Scenario: Subtract two numbers
+    Given I have a calculator
+    When I subtract 5 from 8
+    Then the result should be 3
+
+  @serial
+  Scenario: Shared resource operation
+    Given I have a calculator
+    When I multiply 4 by 6
+    Then the result should be 24
+```
+
+### Running
+
+```bash
+cd examples/calculator
+behave --runner=parallel --parallel 4
+```
+
+**What happens:**
+
+1. "Add two numbers" and "Subtract two numbers" run in parallel across workers.
+2. "Shared resource operation" is tagged `@serial`, so it runs after the parallel phase.
+3. `behave-pool-report.json` is written with the full `ExecutionReport` format.
+
+### Generated JSON report
+
+The `behave-pool-report.json` file follows the
+[`behave-modern-json-report`](https://github.com/MathiasPaulenko/behave-modern-json-report)
+`ExecutionReport` schema (v1.1.0):
+
+```json
+{
+  "schemaVersion": "1.1.0",
+  "execution": {
+    "executionId": "exec-b8f2ac918f12429da48f23df33337ea9",
+    "status": "passed",
+    "duration": 0.013614,
+    "startTime": "2026-07-31T14:36:20.085Z",
+    "endTime": "2026-07-31T14:36:20.085Z"
+  },
+  "statistics": {
+    "features": 1,
+    "scenarios": 3,
+    "steps": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "undefined": 0,
+    "pending": 0,
+    "passRate": 1.0,
+    "duration": 0.005959,
+    "errorCount": 0,
+    "totalAttachments": 0,
+    "totalLogs": 0,
+    "slowestStepDuration": 0.001035,
+    "avgScenarioDuration": 0.001986,
+    "byTag": {
+      "serial": {
+        "count": 1,
+        "duration": 0.001811,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "undefined": 0,
+        "pending": 0,
+        "untested": 0,
+        "error": 0,
+        "hook_error": 0,
+        "cleanup_error": 0,
+        "xfailed": 0,
+        "xpassed": 0
+      }
+    }
+  },
+  "environment": {
+    "pythonVersion": "3.14.5",
+    "platform": "win32",
+    "os": "Windows",
+    "osVersion": "10",
+    "hostname": "MathiasLaptop",
+    "cwd": "examples/calculator",
+    "user": "mathi",
+    "cpuCount": 12,
+    "behaveVersion": "1.3.3",
+    "gitBranch": "main",
+    "gitCommit": "6a55636",
+    "gitRemote": "https://github.com/MathiasPaulenko/behave-pool.git"
+  },
+  "features": [
+    {
+      "id": "feature-1df47553e00",
+      "name": "Calculator",
+      "tags": [],
+      "filename": "features/calculator.feature",
+      "line": 1,
+      "status": "passed",
+      "duration": 0.005958,
+      "scenarios": [
+        {
+          "id": "scenario-1df47610050",
+          "name": "Add two numbers",
+          "featureId": "feature-1df47553e00",
+          "tags": [],
+          "location": { "filename": "features/calculator.feature", "line": 3 },
+          "status": "passed",
+          "duration": 0.002237,
+          "steps": [
+            {
+              "id": "step-1df476101a0",
+              "keyword": "Given",
+              "text": "I have a calculator",
+              "status": "passed",
+              "duration": 0.001034,
+              "location": { "filename": "features/calculator.feature", "line": 4 },
+              "error": null,
+              "attachments": [],
+              "logs": []
+            }
+          ],
+          "background": null,
+          "rule": null,
+          "isOutline": false,
+          "outlineName": null,
+          "retry": null
+        }
+      ],
+      "background": null
+    }
+  ],
+  "metadata": {}
+}
+```
+
+!!! tip "Downstream tools"
+    Any tool built for the `behave-modern-json-report` ecosystem (HTML
+    formatters, dashboards, AI analyzers) can consume this report directly —
+    no conversion needed.
+
 ## Example 1: Calculator API
 
 A simple test suite with 3 feature files running in parallel.

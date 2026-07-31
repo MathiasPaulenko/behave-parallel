@@ -25,7 +25,8 @@ suites grow, wall-clock time becomes a bottleneck. `behave-pool` solves this by:
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
 - **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
-- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`.
+- **Unified JSON report** — Merges all worker reports into a single `behave-modern-json-report` ExecutionReport (schema v1.1.0) with statistics, environment info, and full feature/scenario/step details.
+- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`. The unified report is directly consumable by any tool in the ecosystem.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
 
 ## Quick start

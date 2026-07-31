@@ -19,7 +19,8 @@ method for clean interpreter state on every platform.
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
 - **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
-- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`.
+- **Unified JSON report** — Merges all worker reports into a single `behave-modern-json-report` ExecutionReport (schema v1.1.0) with statistics, environment info, and full feature/scenario/step details.
+- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`. The unified report is directly consumable by any tool in the ecosystem.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
 
 ## Installation
@@ -81,6 +82,7 @@ results, persists timings, and returns the aggregated exit code.
 | `--parallel-scheme` | `feature` | Parallelization unit: `feature` (scenario planned for future). |
 | `--parallel-balance` | `lpt` | Work ordering: `lpt` (longest first) or `fifo` (insertion order). |
 | `--parallel-timing-file` | `.behave-pool-timing.json` | Path to timing file for LPT balancing. |
+| `--parallel-report` | `behave-pool-report.json` | Path to unified JSON report (behave-modern-json-report format). |
 
 ## Usage
 
@@ -114,6 +116,32 @@ By default, `behave-pool` uses Longest Processing Time (LPT) scheduling. It stor
 behave --runner=parallel --parallel 4 --parallel-balance fifo features/
 ```
 
+### Unified JSON report
+
+After all workers finish, `behave-pool` merges their results into a single
+JSON report in the [`behave-modern-json-report`](https://github.com/MathiasPaulenko/behave-modern-json-report)
+`ExecutionReport` format (schema v1.1.0). This report includes:
+
+- **Execution metadata** — unique ID, status, duration, timestamps.
+- **Aggregate statistics** — feature/scenario/step counts, pass rate, error count, per-tag breakdown.
+- **Environment info** — Python and Behave versions, OS, CI provider, git branch/commit.
+- **Full feature tree** — features, scenarios, and steps with IDs, locations, durations, errors, and tracebacks.
+
+```bash
+# Default report path
+behave --runner=parallel --parallel 4 features/
+# → writes behave-pool-report.json
+
+# Custom report path
+behave --runner=parallel --parallel 4 \
+    --parallel-report reports/run.json \
+    features/
+```
+
+Any tool built for the `behave-modern-json-report` ecosystem (HTML formatters,
+dashboards, AI analyzers) can consume the parallel report directly — no
+conversion needed.
+
 ### behave.ini configuration
 
 All CLI options can also be set in `behave.ini`:
@@ -124,12 +152,25 @@ parallel = 4
 parallel-scheme = feature
 parallel-balance = lpt
 parallel-timing-file = .behave-pool-timing.json
+parallel-report = behave-pool-report.json
 ```
 
 ## Requirements
 
 - Python >=3.11
 - behave >=1.3.0
+
+## Example
+
+A complete working example is included in [`examples/calculator/`](examples/calculator/).
+It demonstrates parallel execution, `@serial` scenarios, and the unified JSON report:
+
+```bash
+cd examples/calculator
+behave --runner=parallel --parallel 4
+# → runs 3 scenarios (2 parallel + 1 @serial)
+# → writes behave-pool-report.json with ExecutionReport format
+```
 
 ## Documentation
 
