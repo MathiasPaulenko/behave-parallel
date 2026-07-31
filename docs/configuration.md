@@ -113,6 +113,71 @@ in seconds:
     Add `.behave-pool-timing.json` to your `.gitignore` — it's a local
     optimization artifact, not something you should commit.
 
+---
+
+### `--parallel-report`
+
+| | |
+|---|---|
+| **Default** | `behave-pool-report.json` |
+| **Type** | string (file path) |
+| **Description** | Path to the unified JSON report file. After all workers finish, their individual reports are merged into a single Behave-compatible JSON array. |
+
+```bash
+# Default report path
+behave --runner=parallel --parallel 4 features/
+# → writes behave-pool-report.json
+
+# Custom report path
+behave --runner=parallel --parallel 4 \
+    --parallel-report reports/run-2024-01-15.json \
+    features/
+```
+
+The report is a JSON array of feature objects, matching the structure of
+Behave's native JSON formatter:
+
+```json
+[
+  {
+    "keyword": "Feature",
+    "name": "Login",
+    "description": "User authentication flows",
+    "filename": "features/login.feature",
+    "location": "features/login.feature:1",
+    "tags": ["@smoke"],
+    "status": "passed",
+    "duration": 1.23,
+    "scenarios": [
+      {
+        "keyword": "Scenario",
+        "name": "Successful login",
+        "description": "",
+        "location": "features/login.feature:3",
+        "tags": ["@smoke"],
+        "status": "passed",
+        "duration": 0.8,
+        "steps": [
+          {
+            "keyword": "Given ",
+            "name": "I am on the login page",
+            "status": "passed",
+            "duration": 0.2,
+            "location": "features/login.feature:4",
+            "error_message": null
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+!!! note "Downstream tools"
+    The unified report is compatible with Behave's native JSON format.
+    Tools like `behave-modern-json-report` can consume it directly to
+    generate HTML reports from parallel runs.
+
 ## behave.ini configuration
 
 All options can be set permanently in `behave.ini`:
@@ -123,6 +188,7 @@ parallel = 4
 parallel-scheme = feature
 parallel-balance = lpt
 parallel-timing-file = .behave-pool-timing.json
+parallel-report = behave-pool-report.json
 
 [behave.runners]
 parallel = behave_pool:ParallelRunner

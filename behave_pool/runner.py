@@ -9,7 +9,7 @@ import queue
 import shutil
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from behave.runner import Runner, make_formatters, parse_features
 
@@ -20,8 +20,6 @@ from behave_pool.timing import TimingStore
 from behave_pool.worker import WorkerProcess
 
 if TYPE_CHECKING:
-    from typing import Any
-
     from behave.configuration import Configuration
 
     from behave_pool.work_unit import WorkUnit
@@ -306,9 +304,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         self._update_timings(results)
 
-        tmp_dir = os.path.join(os.getcwd(), "tmp")
-        if os.path.isdir(tmp_dir):
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        self._merge_reports(results)
 
         logger.info(
             "Parallel run complete: %d work units, %d results, failed=%s",
@@ -341,3 +337,51 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             logger.warning(
                 "Failed to update timing file %s; timings will not persist.", timing_file
             )
+
+    def _merge_reports(self, results: list[WorkerResult]) -> None:
+        """Merge per-worker JSON reports into a unified Behave-compatible JSON.
+
+        Reads each worker's report file (pointed to by WorkerResult.report_path),
+        collects all feature dicts, and writes them as a single JSON array to
+        the path specified by ``--parallel-report``.
+
+        The output format matches Behave's native JSON formatter: a top-level
+        array of feature objects, each with scenarios and steps.
+
+        After merging, the temporary ``tmp/`` directory is cleaned up.
+
+        Args:
+            results: Worker results with report paths to merge.
+        """
+        import json
+
+        all_features: list[dict[str, Any]] = []
+
+        for result in results:
+            if not result.report_path:
+                continue
+            try:
+                report_file = Path(result.report_path)
+                if report_file.exists():
+                    data = json.loads(report_file.read_text(encoding="utf-8"))
+                    all_features.extend(data.get("features", []))
+            except Exception:
+                logger.warning(
+                    "Failed to read worker report %s; skipping.", result.report_path
+                )
+
+        report_path = Path(
+            getattr(self.config, "parallel_report", None) or "behave-pool-report.json"
+        )
+        try:
+            report_path.write_text(
+                json.dumps(all_features, indent=2),
+                encoding="utf-8",
+            )
+            logger.info("Unified report written to %s", report_path)
+        except Exception:
+            logger.warning("Failed to write unified report to %s", report_path)
+
+        tmp_dir = Path("tmp")
+        if tmp_dir.is_dir():
+            shutil.rmtree(tmp_dir, ignore_errors=True)

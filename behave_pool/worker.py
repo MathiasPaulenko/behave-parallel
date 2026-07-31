@@ -189,8 +189,59 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
             or len(self.undefined_steps) > undefined_steps_initial_size
         )
 
+    def _serialize_step(self, step: Any) -> dict[str, Any]:
+        """Convert a Behave Step model to a JSON-compatible dict."""
+        return {
+            "keyword": getattr(step, "keyword", ""),
+            "name": getattr(step, "name", ""),
+            "status": str(getattr(step, "status", "skipped")),
+            "duration": getattr(step, "duration", None),
+            "location": str(getattr(step, "location", "")),
+            "error_message": getattr(step, "error_message", None),
+        }
+
+    def _serialize_scenario(self, scenario: Any) -> dict[str, Any]:
+        """Convert a Behave Scenario model to a JSON-compatible dict."""
+        steps = []
+        for step in getattr(scenario, "all_steps", None) or getattr(scenario, "steps", []) or []:
+            steps.append(self._serialize_step(step))
+        return {
+            "keyword": getattr(scenario, "keyword", "Scenario"),
+            "name": getattr(scenario, "name", ""),
+            "description": getattr(scenario, "description", ""),
+            "location": str(getattr(scenario, "location", "")),
+            "tags": [str(t) for t in (getattr(scenario, "tags", None) or [])],
+            "status": str(getattr(scenario, "status", "skipped")),
+            "duration": getattr(scenario, "duration", None),
+            "steps": steps,
+        }
+
+    def _serialize_feature(self, feature: Any) -> dict[str, Any]:
+        """Convert a Behave Feature model to a JSON-compatible dict.
+
+        The output matches the structure of Behave's native JSON formatter so
+        that downstream tools can consume it without modification.
+        """
+        scenarios = []
+        for scenario in getattr(feature, "scenarios", None) or []:
+            scenarios.append(self._serialize_scenario(scenario))
+        return {
+            "keyword": getattr(feature, "keyword", "Feature"),
+            "name": getattr(feature, "name", ""),
+            "description": getattr(feature, "description", ""),
+            "location": str(getattr(feature, "location", "")),
+            "filename": getattr(feature, "filename", ""),
+            "tags": [str(t) for t in (getattr(feature, "tags", None) or [])],
+            "status": str(getattr(feature, "status", "passed")),
+            "duration": getattr(feature, "duration", None),
+            "scenarios": scenarios,
+        }
+
     def _write_report(self, unit: WorkUnit) -> str | None:
-        """Write a minimal JSON report for the work unit.
+        """Write a full JSON report for the work unit.
+
+        The report includes feature, scenario, and step-level results
+        compatible with Behave's native JSON format.
 
         Returns:
             Path to the report file, or None if writing failed.
@@ -200,21 +251,13 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
         report_path = tmp_dir / f"worker_{self.worker_id}_{safe_id}.json"
         try:
             tmp_dir.mkdir(exist_ok=True)
-            failed = any(getattr(f, "status", "passed") == "failed" for f in self.features)
             report_data = {
                 "worker_id": self.worker_id,
                 "work_unit_id": unit.id,
-                "features": [
-                    {
-                        "name": f.name,
-                        "filename": f.filename,
-                        "status": (
-                            "failed" if getattr(f, "status", "passed") == "failed" else "passed"
-                        ),
-                    }
-                    for f in self.features
-                ],
-                "failed": failed,
+                "features": [self._serialize_feature(f) for f in self.features],
+                "failed": any(
+                    getattr(f, "status", "passed") == "failed" for f in self.features
+                ),
             }
             report_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
             return str(report_path)
@@ -245,6 +288,7 @@ def _make_config(snapshot: ConfigSnapshot) -> Configuration:
     config.parallel_scheme = snapshot.parallel_scheme
     config.parallel_balance = snapshot.parallel_balance
     config.parallel_timing_file = snapshot.parallel_timing_file
+    config.parallel_report = snapshot.parallel_report
     return config
 
 

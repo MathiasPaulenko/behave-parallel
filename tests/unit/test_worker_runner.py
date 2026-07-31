@@ -302,6 +302,60 @@ class TestTeardown:
         mock_run_hook.assert_not_called()
 
 
+def _make_mock_feature(
+    name: str = "Login",
+    filename: str = "login.feature",
+    status: str = "passed",
+    scenarios: list | None = None,
+) -> MagicMock:
+    """Create a MagicMock feature with JSON-serializable attributes."""
+    feature = MagicMock()
+    feature.name = name
+    feature.filename = filename
+    feature.status = status
+    feature.keyword = "Feature"
+    feature.description = ""
+    feature.location = "features/login.feature:1"
+    feature.tags = []
+    feature.duration = 0.5
+    feature.scenarios = scenarios or []
+    return feature
+
+
+def _make_mock_scenario(
+    name: str = "Scenario 1",
+    status: str = "passed",
+    steps: list | None = None,
+) -> MagicMock:
+    """Create a MagicMock scenario with JSON-serializable attributes."""
+    scenario = MagicMock()
+    scenario.name = name
+    scenario.status = status
+    scenario.keyword = "Scenario"
+    scenario.description = ""
+    scenario.location = "features/login.feature:3"
+    scenario.tags = []
+    scenario.duration = 0.3
+    scenario.all_steps = steps or []
+    scenario.steps = steps or []
+    return scenario
+
+
+def _make_mock_step(
+    name: str = "Given I am logged in",
+    status: str = "passed",
+) -> MagicMock:
+    """Create a MagicMock step with JSON-serializable attributes."""
+    step = MagicMock()
+    step.name = name
+    step.status = status
+    step.keyword = "Given "
+    step.duration = 0.1
+    step.location = "features/login.feature:4"
+    step.error_message = None
+    return step
+
+
 class TestWriteReport:
     def test_writes_json_report(
         self,
@@ -309,9 +363,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
         tmp_path: Path,
     ) -> None:
-        feature = MagicMock()
-        feature.name = "Login"
-        feature.filename = "login.feature"
+        feature = _make_mock_feature(name="Login", filename="login.feature")
         worker_runner.features = [feature]
 
         with patch.object(Path, "mkdir"), patch.object(Path, "write_text") as mock_write:
@@ -325,6 +377,9 @@ class TestWriteReport:
         worker_runner: WorkerRunner,
         sample_work_unit: WorkUnit,
     ) -> None:
+        feature = _make_mock_feature(name="Login", filename="login.feature")
+        worker_runner.features = [feature]
+
         with (
             patch.object(Path, "mkdir"),
             patch.object(Path, "write_text", side_effect=OSError("disk full")),
@@ -338,6 +393,9 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """mkdir OSError should not propagate; report writing is best-effort."""
+        feature = _make_mock_feature(name="Login", filename="login.feature")
+        worker_runner.features = [feature]
+
         with (
             patch.object(Path, "mkdir", side_effect=PermissionError("no access")),
             patch.object(Path, "write_text"),
@@ -354,10 +412,7 @@ class TestWriteReport:
         propagate and cause the work unit to be incorrectly marked as failed.
         Report writing is best-effort.
         """
-        feature = MagicMock()
-        feature.name = "Bad"
-        feature.filename = "bad.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(name="Bad", filename="bad.feature", status="passed")
         worker_runner.features = [feature]
 
         with (
@@ -373,10 +428,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """Report should contain 'failed' status when a feature has failed."""
-        feature = MagicMock()
-        feature.name = "Broken"
-        feature.filename = "broken.feature"
-        feature.status = "failed"
+        feature = _make_mock_feature(name="Broken", filename="broken.feature", status="failed")
         worker_runner.features = [feature]
 
         import json as json_module
@@ -394,10 +446,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """Report should contain 'passed' status when all features pass."""
-        feature = MagicMock()
-        feature.name = "OK"
-        feature.filename = "ok.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(name="OK", filename="ok.feature", status="passed")
         worker_runner.features = [feature]
 
         import json as json_module
@@ -638,10 +687,11 @@ class TestWriteReportBackslash:
             config=MagicMock(),
             feature_path="features\\login.feature",
         )
-        feature = MagicMock()
-        feature.name = "Login"
-        feature.filename = "features\\login.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(
+            name="Login",
+            filename="features\\login.feature",
+            status="passed",
+        )
         worker_runner.features = [feature]
 
         with patch.object(Path, "mkdir"), patch.object(Path, "write_text"):
