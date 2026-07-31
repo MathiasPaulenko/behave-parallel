@@ -40,7 +40,7 @@ jobs:
           pip install build ruff mypy
           ruff check .
           ruff format --check .
-          mypy --strict behave_parallel
+          mypy --strict behave_pool
           python -m build
       - uses: actions/upload-artifact@v4
         if: steps.version.outputs.bump == 'true'

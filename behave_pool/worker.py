@@ -20,7 +20,7 @@ from behave.runner import (
     select_subdirectories,
 )
 
-from behave_parallel.result import WorkerResult
+from behave_pool.result import WorkerResult
 
 if TYPE_CHECKING:
     from multiprocessing import Queue as QueueType
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 
     from behave.configuration import Configuration
 
-    from behave_parallel.config import ConfigSnapshot
-    from behave_parallel.work_unit import WorkUnit
+    from behave_pool.config import ConfigSnapshot
+    from behave_pool.work_unit import WorkUnit
 
 logger = logging.getLogger(__name__)
 

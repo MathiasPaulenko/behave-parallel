@@ -1,9 +1,9 @@
-site_name: behave-parallel
+site_name: behave-pool
 site_description: Parallel test execution for Behave BDD via native ITestRunner.
 site_author: Mathias Paulenko
-site_url: https://mathiaspaulenko.github.io/behave-parallel/
-repo_url: https://github.com/MathiasPaulenko/behave-parallel
-repo_name: MathiasPaulenko/behave-parallel
+site_url: https://mathiaspaulenko.github.io/behave-pool/
+repo_url: https://github.com/MathiasPaulenko/behave-pool
+repo_name: MathiasPaulenko/behave-pool
 edit_uri: edit/main/docs/
 
 theme:

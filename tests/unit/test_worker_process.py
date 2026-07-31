@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from behave_parallel.result import WorkerResult
-from behave_parallel.work_unit import WorkUnit
-from behave_parallel.worker import WorkerProcess, _worker_run_loop
+from behave_pool.result import WorkerResult
+from behave_pool.work_unit import WorkUnit
+from behave_pool.worker import WorkerProcess, _worker_run_loop
 
 
 @pytest.fixture
@@ -97,7 +97,7 @@ class TestWorkerRunLoop:
         task_queue.put(unit2)
         task_queue.put(None)  # sentinel
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
             mock_runner.aborted = False
@@ -131,7 +131,7 @@ class TestWorkerRunLoop:
         task_queue.put(unit1)
         task_queue.put(None)
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
 
@@ -151,7 +151,7 @@ class TestWorkerRunLoop:
 
         task_queue.put(None)
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
 
@@ -170,7 +170,7 @@ class TestWorkerRunLoop:
 
         task_queue.put(None)
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
             mock_runner.setup.side_effect = RuntimeError("setup crash")
@@ -186,7 +186,7 @@ class TestWorkerRunLoop:
         result_queue: queue.Queue[WorkerResult] = queue.Queue()
         stop_event = multiprocessing.Event()
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
 
@@ -212,7 +212,7 @@ class TestWorkerRunLoop:
         task_queue.put(unit2)
         task_queue.put(None)
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
             mock_runner.run_work_unit.side_effect = [
@@ -246,7 +246,7 @@ class TestWorkerRunLoop:
         task_queue.put(unit1)
         task_queue.put(None)
 
-        with patch("behave_parallel.worker.WorkerRunner") as mock_runner_cls:
+        with patch("behave_pool.worker.WorkerRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner_cls.return_value = mock_runner
             mock_runner.run_work_unit.side_effect = [
@@ -263,8 +263,8 @@ class TestMakeConfig:
     """Test _make_config reconstructs all parallel fields from snapshot."""
 
     def test_make_config_sets_parallel_fields(self) -> None:
-        from behave_parallel.config import ConfigSnapshot
-        from behave_parallel.worker import _make_config
+        from behave_pool.config import ConfigSnapshot
+        from behave_pool.worker import _make_config
 
         snapshot = ConfigSnapshot(
             base_dir="features",
@@ -380,7 +380,7 @@ class TestWorkerProcessRealProcess:
 
         task_queue.put(None)
 
-        with patch("behave_parallel.worker._worker_run_loop", _simple_worker_loop):
+        with patch("behave_pool.worker._worker_run_loop", _simple_worker_loop):
             worker = WorkerProcess(0, task_queue, result_queue, stop_event, config_snapshot=None)
             worker.start()
             worker.join(timeout=10)

@@ -13,18 +13,18 @@ from typing import TYPE_CHECKING
 
 from behave.runner import Runner, make_formatters, parse_features
 
-from behave_parallel.config import add_parallel_options, snapshot_config
-from behave_parallel.iterator import WorkUnitIterator
-from behave_parallel.result import WorkerResult
-from behave_parallel.timing import TimingStore
-from behave_parallel.worker import WorkerProcess
+from behave_pool.config import add_parallel_options, snapshot_config
+from behave_pool.iterator import WorkUnitIterator
+from behave_pool.result import WorkerResult
+from behave_pool.timing import TimingStore
+from behave_pool.worker import WorkerProcess
 
 if TYPE_CHECKING:
     from typing import Any
 
     from behave.configuration import Configuration
 
-    from behave_parallel.work_unit import WorkUnit
+    from behave_pool.work_unit import WorkUnit
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +144,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             return units
 
         timing_file = (
-            getattr(self.config, "parallel_timing_file", None) or ".behave-parallel-timing.json"
+            getattr(self.config, "parallel_timing_file", None) or ".behave-pool-timing.json"
         )
         store = TimingStore(path=Path(timing_file))
         store.load()
@@ -329,7 +329,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             results: Worker results containing durations to persist.
         """
         timing_file = (
-            getattr(self.config, "parallel_timing_file", None) or ".behave-parallel-timing.json"
+            getattr(self.config, "parallel_timing_file", None) or ".behave-pool-timing.json"
         )
         try:
             store = TimingStore(path=Path(timing_file))

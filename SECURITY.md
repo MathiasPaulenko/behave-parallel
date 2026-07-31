@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in behave-parallel, please report it
+If you discover a security vulnerability in behave-pool, please report it
 responsibly.
 
 - Email: **mathias@paulenko.dev**
@@ -15,7 +15,7 @@ provide a fix or mitigation according to severity.
 
 ## Scope
 
-behave-parallel executes test code via `multiprocessing.Process`. It does not
+behave-pool executes test code via `multiprocessing.Process`. It does not
 make network calls or access the filesystem beyond reading feature files and
 writing test reports. Vulnerabilities related to process isolation, pickle
 deserialization of work units, or temp file handling are in scope.

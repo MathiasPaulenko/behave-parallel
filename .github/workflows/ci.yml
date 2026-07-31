@@ -21,7 +21,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-      - run: mypy --strict behave_parallel
+      - run: mypy --strict behave_pool
 
   test:
     runs-on: ${{ matrix.os }}

@@ -25,7 +25,7 @@ class TimingStore:
         path: Path to the JSON timing file.
     """
 
-    def __init__(self, path: Path = Path(".behave-parallel-timing.json")) -> None:
+    def __init__(self, path: Path = Path(".behave-pool-timing.json")) -> None:
         self.path = path
         self._data: dict[str, float] = {}
         self._loaded: bool = False

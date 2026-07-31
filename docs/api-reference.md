@@ -1,15 +1,15 @@
 # API reference
 
-::: behave_parallel.runner
+::: behave_pool.runner
 
-::: behave_parallel.config
+::: behave_pool.config
 
-::: behave_parallel.work_unit
+::: behave_pool.work_unit
 
-::: behave_parallel.result
+::: behave_pool.result
 
-::: behave_parallel.timing
+::: behave_pool.timing
 
-::: behave_parallel.iterator
+::: behave_pool.iterator
 
-::: behave_parallel.worker
+::: behave_pool.worker

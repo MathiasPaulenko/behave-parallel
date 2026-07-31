@@ -1,9 +1,9 @@
-# behave-parallel
+# behave-pool
 
-[![CI](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/ci.yml/badge.svg)](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/ci.yml)
-[![Documentation](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/docs.yml/badge.svg)](https://mathiaspaulenko.github.io/behave-parallel/)
+[![CI](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml/badge.svg)](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml)
+[![Documentation](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/docs.yml/badge.svg)](https://mathiaspaulenko.github.io/behave-pool/)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.11-blue.svg)](https://www.python.org/downloads/)
-[![PyPI](https://img.shields.io/pypi/v/behave-parallel.svg)](https://pypi.org/project/behave-parallel/)
+[![PyPI](https://img.shields.io/pypi/v/behave-pool.svg)](https://pypi.org/project/behave-pool/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
@@ -15,14 +15,14 @@ Parallel test execution for [Behave](https://github.com/behave/behave) BDD via n
 - **Dynamic dispatch** — `multiprocessing.Process` + `Queue`. Workers consume work units as they finish.
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
-- **Timing persistence** — `.behave-parallel-timing.json` stores durations between runs.
+- **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
 - **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
 
 ## Installation
 
 ```bash
-pip install behave-parallel
+pip install behave-pool
 ```
 
 ## Quick start
@@ -31,7 +31,7 @@ pip install behave-parallel
 
 ```ini
 [behave.runners]
-parallel = behave_parallel:ParallelRunner
+parallel = behave_pool:ParallelRunner
 ```
 
 1. Run Behave with parallel workers:
@@ -47,7 +47,7 @@ behave --runner=parallel --parallel 4 --parallel-scheme feature features/
 | `--parallel N` | `1` | Number of worker processes. `1` = sequential passthrough. |
 | `--parallel-scheme` | `feature` | Parallelization unit: `feature` (scenario planned for future). |
 | `--parallel-balance` | `lpt` | Work ordering: `lpt` (longest first) or `fifo` (insertion order). |
-| `--parallel-timing-file` | `.behave-parallel-timing.json` | Path to timing file for LPT balancing. |
+| `--parallel-timing-file` | `.behave-pool-timing.json` | Path to timing file for LPT balancing. |
 
 ## Usage
 
@@ -74,7 +74,7 @@ Scenario: Database migration
 
 ### LPT load balancing
 
-By default, `behave-parallel` uses Longest Processing Time (LPT) scheduling. It stores historical durations in `.behave-parallel-timing.json` and dispatches the slowest features first, minimizing total wall-clock time.
+By default, `behave-pool` uses Longest Processing Time (LPT) scheduling. It stores historical durations in `.behave-pool-timing.json` and dispatches the slowest features first, minimizing total wall-clock time.
 
 ```bash
 # Use FIFO ordering instead of LPT
@@ -90,7 +90,7 @@ All CLI options can also be set in `behave.ini`:
 parallel = 4
 parallel-scheme = feature
 parallel-balance = lpt
-parallel-timing-file = .behave-parallel-timing.json
+parallel-timing-file = .behave-pool-timing.json
 ```
 
 ## Requirements
@@ -101,7 +101,7 @@ parallel-timing-file = .behave-parallel-timing.json
 ## Documentation
 
 Full documentation is available at
-<https://mathiaspaulenko.github.io/behave-parallel/>.
+<https://mathiaspaulenko.github.io/behave-pool/>.
 
 ## Contributing
 

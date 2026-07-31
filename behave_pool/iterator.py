@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from behave_parallel.config import snapshot_config
-from behave_parallel.work_unit import WorkUnit
+from behave_pool.config import snapshot_config
+from behave_pool.work_unit import WorkUnit
 
 if TYPE_CHECKING:
     from behave.configuration import Configuration
