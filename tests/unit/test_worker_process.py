@@ -373,9 +373,10 @@ class TestWorkerProcessRealProcess:
 
     def test_worker_process_wrapper_start_join(self) -> None:
         """Test WorkerProcess.start/join/is_alive with a simple target."""
-        task_queue: multiprocessing.JoinableQueue = multiprocessing.JoinableQueue()
-        result_queue: multiprocessing.Queue = multiprocessing.Queue()
-        stop_event = multiprocessing.Event()
+        ctx = multiprocessing.get_context("spawn")
+        task_queue: multiprocessing.JoinableQueue = ctx.JoinableQueue()
+        result_queue: multiprocessing.Queue = ctx.Queue()
+        stop_event = ctx.Event()
 
         task_queue.put(None)
 
