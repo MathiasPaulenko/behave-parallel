@@ -905,3 +905,184 @@ class TestSortByDurationNoneTimingFile:
         # Should not raise TypeError from Path(None)
         result = runner._sort_by_duration(units)
         assert len(result) == 2
+
+
+class TestComputeStatistics:
+    """Tests for ParallelRunner._compute_statistics."""
+
+    def test_empty_features(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        stats = runner._compute_statistics([])
+        assert stats["features"] == 0
+        assert stats["scenarios"] == 0
+        assert stats["steps"] == 0
+        assert stats["passed"] == 0
+        assert stats["failed"] == 0
+        assert stats["passRate"] == 0.0
+        assert stats["byTag"] == {}
+        assert "commonExceptionType" not in stats
+
+    def test_passed_scenarios(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        features = [
+            {
+                "tags": [],
+                "duration": 0.1,
+                "scenarios": [
+                    {
+                        "status": "passed",
+                        "duration": 0.05,
+                        "tags": ["smoke"],
+                        "steps": [
+                            {"status": "passed", "duration": 0.01},
+                            {"status": "passed", "duration": 0.02},
+                        ],
+                    },
+                ],
+            },
+        ]
+        stats = runner._compute_statistics(features)
+        assert stats["features"] == 1
+        assert stats["scenarios"] == 1
+        assert stats["steps"] == 2
+        assert stats["passed"] == 2
+        assert stats["failed"] == 0
+        assert stats["passRate"] == 1.0
+        assert "smoke" in stats["byTag"]
+        assert stats["byTag"]["smoke"]["passed"] == 1
+        assert stats["byTag"]["smoke"]["failed"] == 0
+
+    def test_failed_scenarios_with_error(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        features = [
+            {
+                "tags": [],
+                "duration": 0.1,
+                "scenarios": [
+                    {
+                        "status": "failed",
+                        "duration": 0.05,
+                        "tags": [],
+                        "steps": [
+                            {"status": "passed", "duration": 0.01},
+                            {
+                                "status": "failed",
+                                "duration": 0.02,
+                                "error": {"type": "AssertionError", "message": "x"},
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        stats = runner._compute_statistics(features)
+        assert stats["passed"] == 1
+        assert stats["failed"] == 1
+        assert stats["errorCount"] == 1
+        assert stats["commonExceptionType"] == "AssertionError"
+
+    def test_tag_inherits_feature_tags(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        features = [
+            {
+                "tags": ["feature-tag"],
+                "duration": 0.0,
+                "scenarios": [
+                    {
+                        "status": "passed",
+                        "duration": 0.0,
+                        "tags": ["scenario-tag"],
+                        "steps": [],
+                    },
+                ],
+            },
+        ]
+        stats = runner._compute_statistics(features)
+        assert "feature-tag" in stats["byTag"]
+        assert "scenario-tag" in stats["byTag"]
+        assert stats["byTag"]["feature-tag"]["count"] == 1
+        assert stats["byTag"]["scenario-tag"]["count"] == 1
+
+
+class TestDetectEnvironment:
+    """Tests for ParallelRunner._detect_environment."""
+
+    def test_returns_dict_with_required_keys(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        env = runner._detect_environment()
+        assert "pythonVersion" in env
+        assert "platform" in env
+        assert "os" in env
+        assert "osVersion" in env
+        assert "hostname" in env
+
+    def test_ci_provider_detected_when_ci_env_set(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        with patch.dict("os.environ", {"CI": "true"}, clear=False):
+            env = runner._detect_environment()
+            assert env.get("ciProvider") == "ci"
+
+    def test_no_null_values_in_env(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        env = runner._detect_environment()
+        for key, value in env.items():
+            assert value is not None, f"{key} should not be None"
+
+
+class TestBuildExecution:
+    """Tests for ParallelRunner._build_execution."""
+
+    def test_passed_execution(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        results = [
+            WorkerResult(
+                worker_id=0,
+                work_unit_id="u1",
+                failed=False,
+                duration=1.5,
+                report_path="tmp/worker_0.json",
+            ),
+        ]
+        execution = runner._build_execution(results)
+        assert execution["status"] == "passed"
+        assert execution["duration"] == 1.5
+        assert "executionId" in execution
+        assert "startTime" in execution
+        assert "endTime" in execution
+        assert "command" not in execution
+        assert "workingDirectory" not in execution
+
+    def test_failed_execution(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        results = [
+            WorkerResult(
+                worker_id=0,
+                work_unit_id="u1",
+                failed=True,
+                duration=2.0,
+                report_path="tmp/worker_0.json",
+            ),
+        ]
+        execution = runner._build_execution(results)
+        assert execution["status"] == "failed"
+
+    def test_duration_sums_all_results(self, mock_config: MagicMock) -> None:
+        runner = ParallelRunner(mock_config)
+        results = [
+            WorkerResult(
+                worker_id=0,
+                work_unit_id="u1",
+                failed=False,
+                duration=1.0,
+                report_path="tmp/worker_0.json",
+            ),
+            WorkerResult(
+                worker_id=1,
+                work_unit_id="u2",
+                failed=False,
+                duration=2.5,
+                report_path="tmp/worker_1.json",
+            ),
+        ]
+        execution = runner._build_execution(results)
+        assert execution["duration"] == 3.5
