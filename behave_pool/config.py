@@ -1,4 +1,4 @@
-"""Parallel configuration options for behave-parallel."""
+"""Parallel configuration options for behave-pool."""
 
 from __future__ import annotations
 
@@ -51,8 +51,20 @@ def _register_parallel_options() -> None:
                 ("--parallel-timing-file",),
                 {
                     "dest": "parallel_timing_file",
-                    "default": ".behave-parallel-timing.json",
+                    "default": ".behave-pool-timing.json",
                     "help": "Path to timing file for LPT balancing (default: %(default)s).",
+                },
+            ),
+        )
+
+    if "--parallel-report" not in existing:
+        OPTIONS.append(
+            (
+                ("--parallel-report",),
+                {
+                    "dest": "parallel_report",
+                    "default": "behave-pool-report.json",
+                    "help": "Path to unified JSON report file (default: %(default)s).",
                 },
             ),
         )
@@ -79,7 +91,8 @@ class ConfigSnapshot:
     parallel: int = 1
     parallel_scheme: str = "feature"
     parallel_balance: str = "lpt"
-    parallel_timing_file: str = ".behave-parallel-timing.json"
+    parallel_timing_file: str = ".behave-pool-timing.json"
+    parallel_report: str = "behave-pool-report.json"
     dry_run: bool = False
     use_nested_step_modules: bool = False
 
@@ -97,7 +110,10 @@ def snapshot_config(config: Configuration) -> ConfigSnapshot:
         parallel_scheme=getattr(config, "parallel_scheme", "feature"),
         parallel_balance=getattr(config, "parallel_balance", "lpt"),
         parallel_timing_file=str(
-            getattr(config, "parallel_timing_file", None) or ".behave-parallel-timing.json"
+            getattr(config, "parallel_timing_file", None) or ".behave-pool-timing.json"
+        ),
+        parallel_report=str(
+            getattr(config, "parallel_report", None) or "behave-pool-report.json"
         ),
         dry_run=config.dry_run,
         use_nested_step_modules=getattr(config, "use_nested_step_modules", False),
@@ -125,7 +141,10 @@ def add_parallel_options(config: Configuration) -> None:
         config.parallel_balance = "lpt"
 
     if not hasattr(config, "parallel_timing_file") or config.parallel_timing_file is None:
-        config.parallel_timing_file = ".behave-parallel-timing.json"
+        config.parallel_timing_file = ".behave-pool-timing.json"
+
+    if not hasattr(config, "parallel_report") or config.parallel_report is None:
+        config.parallel_report = "behave-pool-report.json"
 
     if not hasattr(config, "use_nested_step_modules"):
         config.use_nested_step_modules = False

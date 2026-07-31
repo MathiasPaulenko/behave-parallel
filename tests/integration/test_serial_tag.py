@@ -25,7 +25,7 @@ def _run_behave(parallel: int) -> tuple[int, str, str]:
         "-m",
         "behave",
         "--runner",
-        "behave_parallel:ParallelRunner",
+        "behave_pool:ParallelRunner",
         "--parallel",
         str(parallel),
         str(FEATURES_DIR),
@@ -51,7 +51,7 @@ class TestSerialTagExecution:
 
     def teardown_method(self) -> None:
         """Clean up timing file after each test."""
-        timing_file = FIXTURES_DIR / ".behave-parallel-timing.json"
+        timing_file = FIXTURES_DIR / ".behave-pool-timing.json"
         if timing_file.exists():
             timing_file.unlink()
 

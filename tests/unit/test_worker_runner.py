@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from behave_parallel.result import WorkerResult
-from behave_parallel.work_unit import WorkUnit
-from behave_parallel.worker import WorkerRunner
+from behave_pool.result import WorkerResult
+from behave_pool.work_unit import WorkUnit
+from behave_pool.worker import WorkerRunner
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ class TestWorkerRunnerInit:
 class TestSetup:
     @patch.object(WorkerRunner, "load_hooks")
     @patch.object(WorkerRunner, "load_step_definitions")
-    @patch("behave_parallel.worker.Context")
+    @patch("behave_pool.worker.Context")
     def test_setup_loads_hooks_and_steps(
         self,
         mock_context_cls: MagicMock,
@@ -111,9 +111,9 @@ class TestSetup:
         mock_load_hooks.assert_called_once()
         mock_load_steps.assert_called_once()
 
-    @patch("behave_parallel.worker.load_step_modules")
-    @patch("behave_parallel.worker.os.path.join", return_value="features/steps")
-    @patch("behave_parallel.worker.os.path.exists", return_value=True)
+    @patch("behave_pool.worker.load_step_modules")
+    @patch("behave_pool.worker.os.path.join", return_value="features/steps")
+    @patch("behave_pool.worker.os.path.exists", return_value=True)
     def test_load_step_definitions_sets_step_registry(
         self,
         mock_exists: MagicMock,
@@ -128,7 +128,7 @@ class TestSetup:
 
     @patch.object(WorkerRunner, "load_hooks")
     @patch.object(WorkerRunner, "load_step_definitions")
-    @patch("behave_parallel.worker.Context")
+    @patch("behave_pool.worker.Context")
     def test_setup_creates_context(
         self,
         mock_context_cls: MagicMock,
@@ -143,7 +143,7 @@ class TestSetup:
     @patch.object(WorkerRunner, "run_hook")
     @patch.object(WorkerRunner, "load_hooks")
     @patch.object(WorkerRunner, "load_step_definitions")
-    @patch("behave_parallel.worker.Context")
+    @patch("behave_pool.worker.Context")
     def test_setup_runs_before_all(
         self,
         mock_context_cls: MagicMock,
@@ -157,7 +157,7 @@ class TestSetup:
 
 
 class TestRunWorkUnit:
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_successful_run(
@@ -179,7 +179,7 @@ class TestRunWorkUnit:
         assert result.undefined_steps == []
         assert result.error is None
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=True)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_failed_run(
@@ -194,7 +194,7 @@ class TestRunWorkUnit:
         result = worker_runner.run_work_unit(sample_work_unit)
         assert result.failed is True
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", side_effect=RuntimeError("Boom!"))
     def test_exception_returns_failed_result(
         self,
@@ -209,7 +209,7 @@ class TestRunWorkUnit:
         assert result.duration >= 0
 
     @patch(
-        "behave_parallel.worker.parse_features",
+        "behave_pool.worker.parse_features",
         side_effect=FileNotFoundError("missing.feature"),
     )
     def test_parse_features_exception_returns_failed_result(
@@ -225,7 +225,7 @@ class TestRunWorkUnit:
         assert "missing.feature" in (result.error or "")
         assert result.duration >= 0
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_collect_result(
@@ -243,7 +243,7 @@ class TestRunWorkUnit:
         assert result is not None
         assert result.work_unit_id == "feature:login.feature"
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value=None)
     def test_run_work_unit_parses_feature_file(
@@ -302,6 +302,64 @@ class TestTeardown:
         mock_run_hook.assert_not_called()
 
 
+def _make_mock_feature(
+    name: str = "Login",
+    filename: str = "login.feature",
+    status: str = "passed",
+    scenarios: list | None = None,
+) -> MagicMock:
+    """Create a MagicMock feature with JSON-serializable attributes."""
+    feature = MagicMock()
+    feature.name = name
+    feature.filename = filename
+    feature.status = status
+    feature.keyword = "Feature"
+    feature.description = ""
+    feature.line = 1
+    feature.tags = []
+    feature.duration = 0.5
+    feature.background = None
+    feature.scenarios = scenarios or []
+    return feature
+
+
+def _make_mock_scenario(
+    name: str = "Scenario 1",
+    status: str = "passed",
+    steps: list | None = None,
+) -> MagicMock:
+    """Create a MagicMock scenario with JSON-serializable attributes."""
+    scenario = MagicMock()
+    scenario.name = name
+    scenario.status = status
+    scenario.type = "scenario"
+    scenario.description = ""
+    scenario.line = 3
+    scenario.filename = "features/login.feature"
+    scenario.tags = []
+    scenario.duration = 0.3
+    scenario.all_steps = steps or []
+    scenario.steps = steps or []
+    return scenario
+
+
+def _make_mock_step(
+    name: str = "Given I am logged in",
+    status: str = "passed",
+) -> MagicMock:
+    """Create a MagicMock step with JSON-serializable attributes."""
+    step = MagicMock()
+    step.name = name
+    step.status = status
+    step.keyword = "Given "
+    step.duration = 0.1
+    step.line = 4
+    step.filename = "features/login.feature"
+    step.error = None
+    step.error_message = None
+    return step
+
+
 class TestWriteReport:
     def test_writes_json_report(
         self,
@@ -309,9 +367,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
         tmp_path: Path,
     ) -> None:
-        feature = MagicMock()
-        feature.name = "Login"
-        feature.filename = "login.feature"
+        feature = _make_mock_feature(name="Login", filename="login.feature")
         worker_runner.features = [feature]
 
         with patch.object(Path, "mkdir"), patch.object(Path, "write_text") as mock_write:
@@ -325,6 +381,9 @@ class TestWriteReport:
         worker_runner: WorkerRunner,
         sample_work_unit: WorkUnit,
     ) -> None:
+        feature = _make_mock_feature(name="Login", filename="login.feature")
+        worker_runner.features = [feature]
+
         with (
             patch.object(Path, "mkdir"),
             patch.object(Path, "write_text", side_effect=OSError("disk full")),
@@ -338,6 +397,9 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """mkdir OSError should not propagate; report writing is best-effort."""
+        feature = _make_mock_feature(name="Login", filename="login.feature")
+        worker_runner.features = [feature]
+
         with (
             patch.object(Path, "mkdir", side_effect=PermissionError("no access")),
             patch.object(Path, "write_text"),
@@ -354,15 +416,12 @@ class TestWriteReport:
         propagate and cause the work unit to be incorrectly marked as failed.
         Report writing is best-effort.
         """
-        feature = MagicMock()
-        feature.name = "Bad"
-        feature.filename = "bad.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(name="Bad", filename="bad.feature", status="passed")
         worker_runner.features = [feature]
 
         with (
             patch.object(Path, "mkdir"),
-            patch("behave_parallel.worker.json.dumps", side_effect=TypeError("not serializable")),
+            patch("behave_pool.worker.json.dumps", side_effect=TypeError("not serializable")),
         ):
             result = worker_runner._write_report(sample_work_unit)
             assert result is None
@@ -373,10 +432,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """Report should contain 'failed' status when a feature has failed."""
-        feature = MagicMock()
-        feature.name = "Broken"
-        feature.filename = "broken.feature"
-        feature.status = "failed"
+        feature = _make_mock_feature(name="Broken", filename="broken.feature", status="failed")
         worker_runner.features = [feature]
 
         import json as json_module
@@ -394,10 +450,7 @@ class TestWriteReport:
         sample_work_unit: WorkUnit,
     ) -> None:
         """Report should contain 'passed' status when all features pass."""
-        feature = MagicMock()
-        feature.name = "OK"
-        feature.filename = "ok.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(name="OK", filename="ok.feature", status="passed")
         worker_runner.features = [feature]
 
         import json as json_module
@@ -411,7 +464,7 @@ class TestWriteReport:
 
 
 class TestLoadHooks:
-    @patch("behave_parallel.worker.os.path.exists", return_value=False)
+    @patch("behave_pool.worker.os.path.exists", return_value=False)
     def test_load_hooks_no_environment_file(
         self,
         mock_exists: MagicMock,
@@ -421,8 +474,8 @@ class TestLoadHooks:
         worker_runner.load_hooks()
         assert "before_all" in worker_runner.hooks
 
-    @patch("behave_parallel.worker.exec_file")
-    @patch("behave_parallel.worker.os.path.exists", return_value=True)
+    @patch("behave_pool.worker.exec_file")
+    @patch("behave_pool.worker.os.path.exists", return_value=True)
     def test_load_hooks_with_environment_file(
         self,
         mock_exists: MagicMock,
@@ -435,7 +488,7 @@ class TestLoadHooks:
 
 
 class TestLoadStepDefinitions:
-    @patch("behave_parallel.worker.load_step_modules")
+    @patch("behave_pool.worker.load_step_modules")
     def test_load_step_definitions(
         self,
         mock_load: MagicMock,
@@ -444,7 +497,7 @@ class TestLoadStepDefinitions:
         worker_runner.load_step_definitions()
         mock_load.assert_called_once()
 
-    @patch("behave_parallel.worker.load_step_modules")
+    @patch("behave_pool.worker.load_step_modules")
     def test_load_step_definitions_with_extra_paths(
         self,
         mock_load: MagicMock,
@@ -551,7 +604,7 @@ class TestRunFeaturesAborted:
 class TestUndefinedStepsReset:
     """Regression tests for undefined_steps being cleared between work units."""
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_undefined_steps_cleared_before_each_work_unit(
@@ -570,7 +623,7 @@ class TestUndefinedStepsReset:
         assert "stale_undefined_step" not in result.undefined_steps
         assert result.undefined_steps == []
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_hook_failures_reset_before_each_work_unit(
@@ -591,7 +644,7 @@ class TestUndefinedStepsReset:
 class TestAbortedReset:
     """Regression tests for self.aborted being reset between work units."""
 
-    @patch("behave_parallel.worker.parse_features", return_value=[])
+    @patch("behave_pool.worker.parse_features", return_value=[])
     @patch.object(WorkerRunner, "_run_features", return_value=False)
     @patch.object(WorkerRunner, "_write_report", return_value="tmp/report.json")
     def test_aborted_reset_before_each_work_unit(
@@ -638,10 +691,11 @@ class TestWriteReportBackslash:
             config=MagicMock(),
             feature_path="features\\login.feature",
         )
-        feature = MagicMock()
-        feature.name = "Login"
-        feature.filename = "features\\login.feature"
-        feature.status = "passed"
+        feature = _make_mock_feature(
+            name="Login",
+            filename="features\\login.feature",
+            status="passed",
+        )
         worker_runner.features = [feature]
 
         with patch.object(Path, "mkdir"), patch.object(Path, "write_text"):
@@ -655,8 +709,8 @@ class TestWriteReportBackslash:
 class TestLoadStepDefinitionsNested:
     """Regression test for load_step_definitions with use_nested_step_modules."""
 
-    @patch("behave_parallel.worker.select_subdirectories", return_value=["features/steps/sub1"])
-    @patch("behave_parallel.worker.load_step_modules")
+    @patch("behave_pool.worker.select_subdirectories", return_value=["features/steps/sub1"])
+    @patch("behave_pool.worker.load_step_modules")
     def test_load_step_definitions_with_nested_modules(
         self,
         mock_load: MagicMock,
@@ -670,8 +724,8 @@ class TestLoadStepDefinitionsNested:
         call_args = mock_load.call_args[0][0]
         assert "features/steps/sub1" in call_args
 
-    @patch("behave_parallel.worker.select_subdirectories")
-    @patch("behave_parallel.worker.load_step_modules")
+    @patch("behave_pool.worker.select_subdirectories")
+    @patch("behave_pool.worker.load_step_modules")
     def test_load_step_definitions_without_nested_modules(
         self,
         mock_load: MagicMock,
@@ -805,8 +859,8 @@ class TestNoneFieldSafety:
             stop_event=stop_event,
         )
         with (
-            patch("behave_parallel.worker.load_step_modules"),
-            patch("behave_parallel.worker.select_subdirectories", return_value=[]),
+            patch("behave_pool.worker.load_step_modules"),
+            patch("behave_pool.worker.select_subdirectories", return_value=[]),
         ):
             runner.load_step_definitions()
 
@@ -823,7 +877,7 @@ class TestRunWorkUnitEmptyFeaturePath:
         worker_runner: WorkerRunner,
     ) -> None:
         """run_work_unit must return failed=True when feature_path is None."""
-        from behave_parallel.work_unit import WorkUnit
+        from behave_pool.work_unit import WorkUnit
 
         unit = WorkUnit(
             id="feature:None",
@@ -839,7 +893,7 @@ class TestRunWorkUnitEmptyFeaturePath:
         worker_runner: WorkerRunner,
     ) -> None:
         """run_work_unit must return failed=True when feature_path is empty string."""
-        from behave_parallel.work_unit import WorkUnit
+        from behave_pool.work_unit import WorkUnit
 
         unit = WorkUnit(
             id="feature:empty",

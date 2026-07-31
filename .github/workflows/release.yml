@@ -18,10 +18,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       bump: ${{ steps.version.outputs.bump }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Detect version bump
@@ -40,9 +40,9 @@ jobs:
           pip install build ruff mypy
           ruff check .
           ruff format --check .
-          mypy --strict behave_parallel
+          mypy --strict behave_pool
           python -m build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.version.outputs.bump == 'true'
         with:
           name: dist
@@ -62,7 +62,7 @@ jobs:
           name: dist
           path: dist/
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@1.12.4
+        uses: pypa/gh-action-pypi-publish@release/v1
 
   release:
     name: Create GitHub Release
@@ -72,19 +72,24 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Create git tag
         run: |
-          git tag "v${{ needs.build.outputs.version }}"
-          git push origin "v${{ needs.build.outputs.version }}"
+          TAG="v${{ needs.build.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; skipping creation."
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@2.2.2
+        uses: softprops/action-gh-release@v3.0.2
         with:
           tag_name: "v${{ needs.build.outputs.version }}"
           generate_release_notes: true

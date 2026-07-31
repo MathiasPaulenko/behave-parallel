@@ -44,6 +44,6 @@ site/
 .DS_Store
 Thumbs.db
 
-# behave-parallel temp files
-.behave-parallel-timing.json
+# behave-pool temp files
+.behave-pool-timing.json
 tmp/

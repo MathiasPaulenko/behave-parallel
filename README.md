@@ -1,44 +1,78 @@
-# behave-parallel
+# behave-pool
 
-[![CI](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/ci.yml/badge.svg)](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/ci.yml)
-[![Documentation](https://github.com/MathiasPaulenko/behave-parallel/actions/workflows/docs.yml/badge.svg)](https://mathiaspaulenko.github.io/behave-parallel/)
+[![CI](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml/badge.svg)](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml)
+[![Documentation](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/docs.yml/badge.svg)](https://mathiaspaulenko.github.io/behave-pool/)
+[![PyPI version](https://img.shields.io/pypi/v/behave-pool.svg?label=pypi)](https://pypi.org/project/behave-pool/)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.11-blue.svg)](https://www.python.org/downloads/)
-[![PyPI](https://img.shields.io/pypi/v/behave-parallel.svg)](https://pypi.org/project/behave-parallel/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-Parallel test execution for [Behave](https://github.com/behave/behave) BDD via native `ITestRunner`.
+Parallel test execution for [Behave](https://github.com/behave/behave) BDD via
+native `ITestRunner`. Workers run in isolated processes with `spawn` start
+method for clean interpreter state on every platform.
 
 ## Features
 
 - **Native ITestRunner** — Registered via `--runner=` or `behave.ini`. Zero monkey-patching.
+- **Process isolation** — `spawn` start method ensures clean state in every worker, on every OS.
 - **Dynamic dispatch** — `multiprocessing.Process` + `Queue`. Workers consume work units as they finish.
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
-- **Timing persistence** — `.behave-parallel-timing.json` stores durations between runs.
-- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`.
+- **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
+- **Unified JSON report** — Merges all worker reports into a single `behave-modern-json-report` ExecutionReport (schema v1.1.0) with statistics, environment info, and full feature/scenario/step details.
+- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`. The unified report is directly consumable by any tool in the ecosystem.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
 
 ## Installation
 
 ```bash
-pip install behave-parallel
+pip install behave-pool
 ```
 
 ## Quick start
 
 1. Register the runner in your `behave.ini`:
 
-```ini
-[behave.runners]
-parallel = behave_parallel:ParallelRunner
+   ```ini
+   [behave.runners]
+   parallel = behave_pool:ParallelRunner
+   ```
+
+2. Run Behave with parallel workers:
+
+   ```bash
+   behave --runner=parallel --parallel 4 --parallel-scheme feature features/
+   ```
+
+## How it works
+
+```
+┌─────────────────────────────────────────────────┐
+│                  ParallelRunner                  │
+│                                                  │
+│  1. Plan    — parse features, create work units  │
+│  2. Split   — separate @serial from parallel     │
+│  3. Dispatch — N workers consume from queue      │
+│  4. Collect — gather results, update timings     │
+│  5. Serial  — run @serial units one at a time    │
+└─────────────────────────────────────────────────┘
+         │                          │
+    ┌────▼────┐               ┌────▼────┐
+    │ Worker 0 │               │ Worker N │
+    │ (spawn)  │    ...        │ (spawn)  │
+    │          │               │          │
+    │ parse    │               │ parse    │
+    │ features │               │ features │
+    │ run      │               │ run      │
+    │ report   │               │ report   │
+    └──────────┘               └──────────┘
 ```
 
-1. Run Behave with parallel workers:
-
-```bash
-behave --runner=parallel --parallel 4 --parallel-scheme feature features/
-```
+Each worker runs in an isolated process with the `spawn` start method,
+guaranteeing a clean interpreter state regardless of OS or Python version.
+Workers consume work units from a shared `JoinableQueue` and write
+`WorkerResult` objects back to a result queue. The coordinator collects
+results, persists timings, and returns the aggregated exit code.
 
 ## CLI options
 
@@ -47,7 +81,8 @@ behave --runner=parallel --parallel 4 --parallel-scheme feature features/
 | `--parallel N` | `1` | Number of worker processes. `1` = sequential passthrough. |
 | `--parallel-scheme` | `feature` | Parallelization unit: `feature` (scenario planned for future). |
 | `--parallel-balance` | `lpt` | Work ordering: `lpt` (longest first) or `fifo` (insertion order). |
-| `--parallel-timing-file` | `.behave-parallel-timing.json` | Path to timing file for LPT balancing. |
+| `--parallel-timing-file` | `.behave-pool-timing.json` | Path to timing file for LPT balancing. |
+| `--parallel-report` | `behave-pool-report.json` | Path to unified JSON report (behave-modern-json-report format). |
 
 ## Usage
 
@@ -74,12 +109,38 @@ Scenario: Database migration
 
 ### LPT load balancing
 
-By default, `behave-parallel` uses Longest Processing Time (LPT) scheduling. It stores historical durations in `.behave-parallel-timing.json` and dispatches the slowest features first, minimizing total wall-clock time.
+By default, `behave-pool` uses Longest Processing Time (LPT) scheduling. It stores historical durations in `.behave-pool-timing.json` and dispatches the slowest features first, minimizing total wall-clock time.
 
 ```bash
 # Use FIFO ordering instead of LPT
 behave --runner=parallel --parallel 4 --parallel-balance fifo features/
 ```
+
+### Unified JSON report
+
+After all workers finish, `behave-pool` merges their results into a single
+JSON report in the [`behave-modern-json-report`](https://github.com/MathiasPaulenko/behave-modern-json-report)
+`ExecutionReport` format (schema v1.1.0). This report includes:
+
+- **Execution metadata** — unique ID, status, duration, timestamps.
+- **Aggregate statistics** — feature/scenario/step counts, pass rate, error count, per-tag breakdown.
+- **Environment info** — Python and Behave versions, OS, CI provider, git branch/commit.
+- **Full feature tree** — features, scenarios, and steps with IDs, locations, durations, errors, and tracebacks.
+
+```bash
+# Default report path
+behave --runner=parallel --parallel 4 features/
+# → writes behave-pool-report.json
+
+# Custom report path
+behave --runner=parallel --parallel 4 \
+    --parallel-report reports/run.json \
+    features/
+```
+
+Any tool built for the `behave-modern-json-report` ecosystem (HTML formatters,
+dashboards, AI analyzers) can consume the parallel report directly — no
+conversion needed.
 
 ### behave.ini configuration
 
@@ -90,7 +151,8 @@ All CLI options can also be set in `behave.ini`:
 parallel = 4
 parallel-scheme = feature
 parallel-balance = lpt
-parallel-timing-file = .behave-parallel-timing.json
+parallel-timing-file = .behave-pool-timing.json
+parallel-report = behave-pool-report.json
 ```
 
 ## Requirements
@@ -98,10 +160,22 @@ parallel-timing-file = .behave-parallel-timing.json
 - Python >=3.11
 - behave >=1.3.0
 
+## Example
+
+A complete working example is included in [`examples/calculator/`](examples/calculator/).
+It demonstrates parallel execution, `@serial` scenarios, and the unified JSON report:
+
+```bash
+cd examples/calculator
+behave --runner=parallel --parallel 4
+# → runs 3 scenarios (2 parallel + 1 @serial)
+# → writes behave-pool-report.json with ExecutionReport format
+```
+
 ## Documentation
 
 Full documentation is available at
-<https://mathiaspaulenko.github.io/behave-parallel/>.
+<https://mathiaspaulenko.github.io/behave-pool/>.
 
 ## Contributing
 

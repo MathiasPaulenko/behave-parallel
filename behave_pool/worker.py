@@ -20,7 +20,7 @@ from behave.runner import (
     select_subdirectories,
 )
 
-from behave_parallel.result import WorkerResult
+from behave_pool.result import WorkerResult
 
 if TYPE_CHECKING:
     from multiprocessing import Queue as QueueType
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 
     from behave.configuration import Configuration
 
-    from behave_parallel.config import ConfigSnapshot
-    from behave_parallel.work_unit import WorkUnit
+    from behave_pool.config import ConfigSnapshot
+    from behave_pool.work_unit import WorkUnit
 
 logger = logging.getLogger(__name__)
 
@@ -189,8 +189,137 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
             or len(self.undefined_steps) > undefined_steps_initial_size
         )
 
+    def _serialize_location(self, obj: Any) -> dict[str, Any] | None:
+        """Extract a location dict from a Behave model object."""
+        filename = getattr(obj, "filename", None)
+        line = getattr(obj, "line", None)
+        if filename is None and line is None:
+            loc = getattr(obj, "location", None)
+            if loc is not None:
+                filename = getattr(loc, "filename", None) or str(loc)
+                line = getattr(loc, "line", None)
+        if filename is None and line is None:
+            return None
+        result: dict[str, Any] = {
+            "filename": str(filename or ""),
+            "line": int(line or 0),
+        }
+        return result
+
+    def _map_status(self, raw: Any) -> str:
+        """Map a Behave status to a canonical string."""
+        if raw is None:
+            return "untested"
+        name = getattr(raw, "name", None) or str(raw)
+        return name.lower().strip() or "passed"
+
+    def _serialize_error(self, step: Any) -> dict[str, Any] | None:
+        """Extract an error dict from a Behave step."""
+        exc = getattr(step, "error", None) or getattr(step, "exception", None)
+        if exc is not None and isinstance(exc, BaseException):
+            import traceback as _tb
+
+            return {
+                "id": f"err-{id(step):x}",
+                "type": type(exc).__name__,
+                "message": str(exc),
+                "traceback": "".join(_tb.format_exception(type(exc), exc, exc.__traceback__)),
+                "location": self._serialize_location(step),
+            }
+        error_message = getattr(step, "error_message", None)
+        if error_message:
+            return {
+                "id": f"err-{id(step):x}",
+                "type": "Error",
+                "message": str(error_message),
+                "traceback": str(getattr(step, "exc_traceback", None) or error_message),
+                "location": self._serialize_location(step),
+            }
+        return None
+
+    def _serialize_step(self, step: Any) -> dict[str, Any]:
+        """Convert a Behave Step to a behave-modern-json-report step dict."""
+        return {
+            "id": f"step-{id(step):x}",
+            "keyword": str(getattr(step, "keyword", "")),
+            "text": str(getattr(step, "name", "") or getattr(step, "text", "")),
+            "status": self._map_status(getattr(step, "status", "passed")),
+            "duration": float(getattr(step, "duration", 0.0) or 0.0),
+            "location": self._serialize_location(step),
+            "error": self._serialize_error(step),
+            "attachments": [],
+            "logs": [],
+        }
+
+    def _serialize_background(self, background: Any) -> dict[str, Any]:
+        """Convert a Behave Background to a behave-modern-json-report background dict."""
+        steps = [self._serialize_step(s) for s in (getattr(background, "steps", None) or [])]
+        return {
+            "id": f"bg-{id(background):x}",
+            "name": str(getattr(background, "name", "") or ""),
+            "keyword": str(getattr(background, "keyword", "Background") or "Background"),
+            "location": self._serialize_location(background),
+            "steps": steps,
+        }
+
+    def _serialize_scenario(self, scenario: Any, feature_id: str) -> dict[str, Any]:
+        """Convert a Behave Scenario to a behave-modern-json-report scenario dict."""
+        steps = []
+        for step in getattr(scenario, "all_steps", None) or getattr(scenario, "steps", []) or []:
+            steps.append(self._serialize_step(step))
+        scenario_type = str(getattr(scenario, "type", "") or "")
+        is_outline = scenario_type in ("scenario_outline", "outline")
+        return {
+            "id": f"scenario-{id(scenario):x}",
+            "name": str(getattr(scenario, "name", "") or "<unnamed>"),
+            "featureId": feature_id,
+            "description": str(getattr(scenario, "description", "") or "") or None,
+            "tags": [str(t) for t in (getattr(scenario, "tags", None) or [])],
+            "examples": [],
+            "location": self._serialize_location(scenario),
+            "status": self._map_status(getattr(scenario, "status", "passed")),
+            "duration": float(getattr(scenario, "duration", 0.0) or 0.0),
+            "steps": steps,
+            "background": None,
+            "rule": None,
+            "isOutline": is_outline,
+            "outlineName": None,
+            "retry": None,
+        }
+
+    def _serialize_feature(self, feature: Any) -> dict[str, Any]:
+        """Convert a Behave Feature to a behave-modern-json-report feature dict.
+
+        The output matches the feature structure of behave-modern-json-report's
+        ExecutionReport schema so downstream tools can consume it directly.
+        """
+        feature_id = f"feature-{id(feature):x}"
+        scenarios = []
+        for scenario in getattr(feature, "scenarios", None) or []:
+            scenarios.append(self._serialize_scenario(scenario, feature_id))
+        background = None
+        behave_background = getattr(feature, "background", None)
+        if behave_background:
+            background = self._serialize_background(behave_background)
+        return {
+            "id": feature_id,
+            "name": str(getattr(feature, "name", "") or "<unnamed>"),
+            "description": str(getattr(feature, "description", "") or "") or None,
+            "tags": [str(t) for t in (getattr(feature, "tags", None) or [])],
+            "filename": getattr(feature, "filename", None),
+            "line": getattr(feature, "line", None),
+            "status": self._map_status(getattr(feature, "status", "passed")),
+            "duration": float(getattr(feature, "duration", 0.0) or 0.0),
+            "scenarios": scenarios,
+            "background": background,
+        }
+
     def _write_report(self, unit: WorkUnit) -> str | None:
-        """Write a minimal JSON report for the work unit.
+        """Write a JSON report for the work unit in behave-modern-json-report format.
+
+        Each report contains a list of feature dicts matching the
+        behave-modern-json-report ExecutionReport feature schema. The
+        coordinator merges these into a full ExecutionReport.
 
         Returns:
             Path to the report file, or None if writing failed.
@@ -200,21 +329,13 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
         report_path = tmp_dir / f"worker_{self.worker_id}_{safe_id}.json"
         try:
             tmp_dir.mkdir(exist_ok=True)
-            failed = any(getattr(f, "status", "passed") == "failed" for f in self.features)
             report_data = {
                 "worker_id": self.worker_id,
                 "work_unit_id": unit.id,
-                "features": [
-                    {
-                        "name": f.name,
-                        "filename": f.filename,
-                        "status": (
-                            "failed" if getattr(f, "status", "passed") == "failed" else "passed"
-                        ),
-                    }
-                    for f in self.features
-                ],
-                "failed": failed,
+                "features": [self._serialize_feature(f) for f in self.features],
+                "failed": any(
+                    getattr(f, "status", "passed") == "failed" for f in self.features
+                ),
             }
             report_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
             return str(report_path)
@@ -245,6 +366,7 @@ def _make_config(snapshot: ConfigSnapshot) -> Configuration:
     config.parallel_scheme = snapshot.parallel_scheme
     config.parallel_balance = snapshot.parallel_balance
     config.parallel_timing_file = snapshot.parallel_timing_file
+    config.parallel_report = snapshot.parallel_report
     return config
 
 
@@ -315,17 +437,19 @@ class WorkerProcess:
         result_queue: QueueType[WorkerResult],
         stop_event: Any,
         config_snapshot: ConfigSnapshot,
+        ctx: Any | None = None,
     ) -> None:
         self.worker_id = worker_id
         self._task_queue = task_queue
         self._result_queue = result_queue
         self._stop_event = stop_event
         self._config_snapshot = config_snapshot
-        self._process: multiprocessing.Process | None = None
+        self._ctx = ctx or multiprocessing.get_context("spawn")
+        self._process: multiprocessing.process.BaseProcess | None = None
 
     def start(self) -> None:
         """Launch the worker process."""
-        self._process = multiprocessing.Process(
+        self._process = self._ctx.Process(
             target=_worker_run_loop,
             args=(
                 self.worker_id,
@@ -336,6 +460,7 @@ class WorkerProcess:
             ),
             daemon=True,
         )
+        assert self._process is not None
         self._process.start()
 
     def join(self, timeout: float | None = None) -> None:

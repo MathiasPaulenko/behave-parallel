@@ -24,7 +24,7 @@ dev: ## Editable install with dev extras
 
 lint: ## Run ruff check + mypy --strict
 	ruff check .
-	mypy --strict behave_parallel
+	mypy --strict behave_pool
 
 lint-fix: ## Auto-fix lint issues
 	ruff check --fix .
@@ -39,12 +39,12 @@ test: ## Run the test suite
 	pytest
 
 test-cov: ## Run tests with coverage (fail under 90%)
-	pytest --cov=behave_parallel --cov-report=term-missing --cov-fail-under=90
+	pytest --cov=behave_pool --cov-report=term-missing --cov-fail-under=90
 
 check: ## Run lint + format-check + test (full pre-commit check)
 	ruff check .
 	ruff format --check .
-	mypy --strict behave_parallel
+	mypy --strict behave_pool
 	pytest
 
 build: ## Build sdist + wheel into dist/

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from behave_parallel.config import ConfigSnapshot, add_parallel_options, snapshot_config
+from behave_pool.config import ConfigSnapshot, add_parallel_options, snapshot_config
 
 
 class TestAddParallelOptions:
@@ -61,7 +61,7 @@ class TestAddParallelOptions:
         del config.parallel_scheme
         del config.parallel_timing_file
         add_parallel_options(config)
-        assert config.parallel_timing_file == ".behave-parallel-timing.json"
+        assert config.parallel_timing_file == ".behave-pool-timing.json"
 
     def test_preserves_existing_parallel_timing_file(self) -> None:
         config = MagicMock()
@@ -143,7 +143,7 @@ class TestSnapshotConfigNoneBaseDir:
         config.parallel = 1
         config.parallel_scheme = "feature"
         config.parallel_balance = "lpt"
-        config.parallel_timing_file = ".behave-parallel-timing.json"
+        config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
 
@@ -170,7 +170,7 @@ class TestSnapshotConfigLangNone:
         config.parallel = 1
         config.parallel_scheme = "feature"
         config.parallel_balance = "lpt"
-        config.parallel_timing_file = ".behave-parallel-timing.json"
+        config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
 
@@ -198,7 +198,7 @@ class TestSnapshotConfigPathObjects:
         config.parallel = 1
         config.parallel_scheme = "feature"
         config.parallel_balance = "lpt"
-        config.parallel_timing_file = ".behave-parallel-timing.json"
+        config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
 
@@ -227,7 +227,7 @@ class TestSnapshotConfigBaseDirPath:
         config.parallel = 1
         config.parallel_scheme = "feature"
         config.parallel_balance = "lpt"
-        config.parallel_timing_file = ".behave-parallel-timing.json"
+        config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
 
@@ -292,7 +292,7 @@ class TestSnapshotConfigPathFields:
         snap = snapshot_config(config)
         assert snap.steps_dir == "steps"
         assert snap.environment_file == "environment.py"
-        assert snap.parallel_timing_file == ".behave-parallel-timing.json"
+        assert snap.parallel_timing_file == ".behave-pool-timing.json"
 
     def test_parallel_none_falls_back_to_jobs(self) -> None:
         """When config.parallel is None, snapshot_config must fall back
