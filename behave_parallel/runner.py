@@ -79,9 +79,10 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
     def _run_parallel(self) -> bool:
         """Execute the parallel pipeline: plan -> split -> dispatch -> collect."""
-        task_queue: Any = multiprocessing.JoinableQueue()
-        result_queue: Any = multiprocessing.Queue()
-        stop_event: Any = multiprocessing.Event()
+        ctx = multiprocessing.get_context("spawn")
+        task_queue: Any = ctx.JoinableQueue()
+        result_queue: Any = ctx.Queue()
+        stop_event: Any = ctx.Event()
 
         try:
             work_units = self._plan()
@@ -105,7 +106,6 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         self.context = Context(self)
         self.load_hooks()
-        self.load_step_definitions()
 
         feature_locations = [
             filename for filename in self.feature_locations() if not self.config.exclude(filename)
@@ -185,6 +185,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         n_workers = self.config.parallel
         config_snapshot = snapshot_config(self.config)
         dispatched: list[WorkUnit] = []
+        ctx = multiprocessing.get_context("spawn")
 
         # -- Phase 1: parallel batch with N workers.
         if parallel_batch:
@@ -202,6 +203,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                     result_queue=result_queue,
                     stop_event=stop_event,
                     config_snapshot=config_snapshot,
+                    ctx=ctx,
                 )
                 worker.start()
                 workers.append(worker)
@@ -238,6 +240,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                 result_queue=result_queue,
                 stop_event=stop_event,
                 config_snapshot=config_snapshot,
+                ctx=ctx,
             )
             serial_worker.start()
             serial_worker.join(timeout=300)

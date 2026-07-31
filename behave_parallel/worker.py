@@ -315,17 +315,19 @@ class WorkerProcess:
         result_queue: QueueType[WorkerResult],
         stop_event: Any,
         config_snapshot: ConfigSnapshot,
+        ctx: Any | None = None,
     ) -> None:
         self.worker_id = worker_id
         self._task_queue = task_queue
         self._result_queue = result_queue
         self._stop_event = stop_event
         self._config_snapshot = config_snapshot
-        self._process: multiprocessing.Process | None = None
+        self._ctx = ctx or multiprocessing.get_context("spawn")
+        self._process: multiprocessing.process.BaseProcess | None = None
 
     def start(self) -> None:
         """Launch the worker process."""
-        self._process = multiprocessing.Process(
+        self._process = self._ctx.Process(
             target=_worker_run_loop,
             args=(
                 self.worker_id,
@@ -336,6 +338,7 @@ class WorkerProcess:
             ),
             daemon=True,
         )
+        assert self._process is not None
         self._process.start()
 
     def join(self, timeout: float | None = None) -> None:
