@@ -2,16 +2,19 @@
 
 [![CI](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml/badge.svg)](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/ci.yml)
 [![Documentation](https://github.com/MathiasPaulenko/behave-pool/actions/workflows/docs.yml/badge.svg)](https://mathiaspaulenko.github.io/behave-pool/)
+[![PyPI version](https://img.shields.io/pypi/v/behave-pool.svg?label=pypi)](https://pypi.org/project/behave-pool/)
 [![Python](https://img.shields.io/badge/python-%E2%89%A53.11-blue.svg)](https://www.python.org/downloads/)
-[![PyPI](https://img.shields.io/pypi/v/behave-pool.svg)](https://pypi.org/project/behave-pool/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-Parallel test execution for [Behave](https://github.com/behave/behave) BDD via native `ITestRunner`.
+Parallel test execution for [Behave](https://github.com/behave/behave) BDD via
+native `ITestRunner`. Workers run in isolated processes with `spawn` start
+method for clean interpreter state on every platform.
 
 ## Features
 
 - **Native ITestRunner** — Registered via `--runner=` or `behave.ini`. Zero monkey-patching.
+- **Process isolation** — `spawn` start method ensures clean state in every worker, on every OS.
 - **Dynamic dispatch** — `multiprocessing.Process` + `Queue`. Workers consume work units as they finish.
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
@@ -29,16 +32,46 @@ pip install behave-pool
 
 1. Register the runner in your `behave.ini`:
 
-```ini
-[behave.runners]
-parallel = behave_pool:ParallelRunner
+   ```ini
+   [behave.runners]
+   parallel = behave_pool:ParallelRunner
+   ```
+
+2. Run Behave with parallel workers:
+
+   ```bash
+   behave --runner=parallel --parallel 4 --parallel-scheme feature features/
+   ```
+
+## How it works
+
+```
+┌─────────────────────────────────────────────────┐
+│                  ParallelRunner                  │
+│                                                  │
+│  1. Plan    — parse features, create work units  │
+│  2. Split   — separate @serial from parallel     │
+│  3. Dispatch — N workers consume from queue      │
+│  4. Collect — gather results, update timings     │
+│  5. Serial  — run @serial units one at a time    │
+└─────────────────────────────────────────────────┘
+         │                          │
+    ┌────▼────┐               ┌────▼────┐
+    │ Worker 0 │               │ Worker N │
+    │ (spawn)  │    ...        │ (spawn)  │
+    │          │               │          │
+    │ parse    │               │ parse    │
+    │ features │               │ features │
+    │ run      │               │ run      │
+    │ report   │               │ report   │
+    └──────────┘               └──────────┘
 ```
 
-1. Run Behave with parallel workers:
-
-```bash
-behave --runner=parallel --parallel 4 --parallel-scheme feature features/
-```
+Each worker runs in an isolated process with the `spawn` start method,
+guaranteeing a clean interpreter state regardless of OS or Python version.
+Workers consume work units from a shared `JoinableQueue` and write
+`WorkerResult` objects back to a result queue. The coordinator collects
+results, persists timings, and returns the aggregated exit code.
 
 ## CLI options
 
