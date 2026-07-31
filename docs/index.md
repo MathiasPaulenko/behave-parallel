@@ -1,6 +1,32 @@
 # behave-pool
 
-Parallel test execution for [Behave](https://github.com/behave/behave) BDD via native `ITestRunner`.
+Parallel test execution for [Behave](https://github.com/behave/behave) BDD via
+native `ITestRunner`. Workers run in isolated processes with the `spawn` start
+method for clean interpreter state on every platform.
+
+## Why behave-pool?
+
+Standard Behave runs all features sequentially in a single process. As test
+suites grow, wall-clock time becomes a bottleneck. `behave-pool` solves this by:
+
+- Splitting features across **N worker processes** that run in parallel.
+- Using the **`spawn` start method** so every worker gets a clean interpreter
+  state — no inherited global registries, no fork-related bugs on Linux.
+- Providing **LPT load balancing** so the slowest features start first,
+  minimizing total wall-clock time.
+- Supporting **`@serial` tags** for scenarios that cannot run in parallel
+  (database migrations, shared resources, etc.).
+
+## Features
+
+- **Native ITestRunner** — Registered via `--runner=` or `behave.ini`. Zero monkey-patching.
+- **Process isolation** — `spawn` start method ensures clean state in every worker, on every OS.
+- **Dynamic dispatch** — `multiprocessing.Process` + `Queue`. Workers consume work units as they finish.
+- **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
+- **LPT load balancing** — Historical durations for optimal work distribution.
+- **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
+- **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`.
+- **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
 
 ## Quick start
 
@@ -23,61 +49,43 @@ behave --runner=parallel --parallel 4 --parallel-scheme feature features/
 
 ## How it works
 
-`behave-pool` implements Behave's `ITestRunner` interface via `ParallelRunner`.
-When `--parallel` is greater than 1, the runner:
-
-1. **Plans** — Parses feature files and creates `WorkUnit` objects (one per feature).
-2. **Splits** — Separates work units tagged `@serial` from the parallel batch.
-3. **Dispatches** — Enqueues parallel work units and launches N worker processes.
-   Each worker consumes units from a shared `JoinableQueue`.
-4. **Collects** — Drains `WorkerResult` objects from the result queue and aggregates
-   pass/fail status.
-5. **Serial phase** — Runs `@serial` work units one at a time after all parallel
-   workers complete.
-6. **Updates timings** — Persists observed durations to `.behave-pool-timing.json`
-   for LPT scheduling on subsequent runs.
-
-When `--parallel` is 1, the runner falls back to standard sequential Behave execution.
-
-## CLI options
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `--parallel N` | `1` | Number of worker processes. `1` = sequential passthrough. |
-| `--parallel-scheme` | `feature` | Parallelization unit: `feature` (scenario planned for future). |
-| `--parallel-balance` | `lpt` | Work ordering: `lpt` (longest first) or `fifo` (insertion order). |
-| `--parallel-timing-file` | `.behave-pool-timing.json` | Path to timing file for LPT balancing. |
-
-## Serial scenarios
-
-Tag scenarios with `@serial` to run them sequentially after all parallel work
-units complete:
-
-```gherkin
-@serial
-Scenario: Database migration
-  Given the database is empty
-  When I run the migration
-  Then all tables should exist
+```
+┌─────────────────────────────────────────────────┐
+│                  ParallelRunner                  │
+│                                                  │
+│  1. Plan    — parse features, create work units  │
+│  2. Split   — separate @serial from parallel     │
+│  3. Dispatch — N workers consume from queue      │
+│  4. Collect — gather results, update timings     │
+│  5. Serial  — run @serial units one at a time    │
+└─────────────────────────────────────────────────┘
+         │                          │
+    ┌────▼────┐               ┌────▼────┐
+    │ Worker 0 │               │ Worker N │
+    │ (spawn)  │    ...        │ (spawn)  │
+    │          │               │          │
+    │ parse    │               │ parse    │
+    │ features │               │ features │
+    │ run      │               │ run      │
+    │ report   │               │ report   │
+    └──────────┘               └──────────┘
 ```
 
-## LPT load balancing
-
-By default, `behave-pool` uses Longest Processing Time (LPT) scheduling.
-It stores historical durations and dispatches the slowest features first,
-minimizing total wall-clock time.
-
-Use `--parallel-balance fifo` to preserve insertion order instead.
+When `--parallel` is 1, the runner falls back to standard sequential Behave
+execution with no overhead.
 
 ## Requirements
 
 - Python >=3.11
 - behave >=1.3.0
 
-## API reference
+## Documentation
 
-- [ParallelRunner](api-reference.md#behave_pool.runner.ParallelRunner)
-- [ConfigSnapshot](api-reference.md#behave_pool.config.ConfigSnapshot)
-- [WorkUnit](api-reference.md#behave_pool.work_unit.WorkUnit)
-- [WorkerResult](api-reference.md#behave_pool.result.WorkerResult)
-- [TimingStore](api-reference.md#behave_pool.timing.TimingStore)
+- [Getting started](getting-started.md) — Installation and first run
+- [Configuration](configuration.md) — All CLI options and `behave.ini` settings
+- [Serial scenarios](serial-scenarios.md) — Using the `@serial` tag
+- [LPT balancing](lpt-balancing.md) — How LPT scheduling works
+- [Architecture](architecture.md) — Internal design and execution model
+- [Ecosystem](ecosystem.md) — Integration with other behave packages
+- [Examples](examples.md) — Complete worked examples
+- [API reference](api-reference.md) — Full API documentation

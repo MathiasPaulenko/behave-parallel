@@ -35,6 +35,13 @@ theme:
 
 nav:
   - Home: index.md
+  - Getting started: getting-started.md
+  - Configuration: configuration.md
+  - Serial scenarios: serial-scenarios.md
+  - LPT balancing: lpt-balancing.md
+  - Architecture: architecture.md
+  - Ecosystem: ecosystem.md
+  - Examples: examples.md
   - API reference: api-reference.md
 
 plugins:
