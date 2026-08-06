@@ -333,7 +333,10 @@ class WorkerRunner(ModelRunner):  # type: ignore[misc]
                 "worker_id": self.worker_id,
                 "work_unit_id": unit.id,
                 "features": [self._serialize_feature(f) for f in self.features],
-                "failed": any(getattr(f, "status", "passed") == "failed" for f in self.features),
+                "failed": any(
+                    self._map_status(getattr(f, "status", "passed")) == "failed"
+                    for f in self.features
+                ),
             }
             report_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
             return str(report_path)
@@ -385,7 +388,21 @@ def _worker_run_loop(
     config = _make_config(config_snapshot)
     runner = WorkerRunner(config, worker_id, result_queue, stop_event)
     try:
-        runner.setup()
+        try:
+            runner.setup()
+        except Exception as exc:
+            logger.exception("Worker %d: setup failed; stopping all workers.", worker_id)
+            stop_event.set()
+            result_queue.put(
+                WorkerResult(
+                    worker_id=worker_id,
+                    work_unit_id="setup",
+                    failed=True,
+                    duration=0.0,
+                    error=f"Worker setup failed: {exc}",
+                )
+            )
+            return
         while True:
             if stop_event.is_set():
                 break

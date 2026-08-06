@@ -163,7 +163,7 @@ class TestWorkerRunLoop:
             assert task_queue.empty()
 
     def test_teardown_called_on_exception(self, mock_config: MagicMock) -> None:
-        """teardown is called even if setup raises."""
+        """teardown is called even if setup raises, and an error result is queued."""
         task_queue: queue.Queue[Any] = queue.Queue()
         result_queue: queue.Queue[WorkerResult] = queue.Queue()
         stop_event = multiprocessing.Event()
@@ -175,10 +175,14 @@ class TestWorkerRunLoop:
             mock_runner_cls.return_value = mock_runner
             mock_runner.setup.side_effect = RuntimeError("setup crash")
 
-            with pytest.raises(RuntimeError, match="setup crash"):
-                _worker_run_loop(0, task_queue, result_queue, stop_event, mock_config)
+            _worker_run_loop(0, task_queue, result_queue, stop_event, mock_config)
 
             mock_runner.teardown.assert_called_once()
+            assert stop_event.is_set()
+            result = result_queue.get_nowait()
+            assert result.failed is True
+            assert "setup crash" in (result.error or "")
+            assert result.work_unit_id == "setup"
 
     def test_worker_loop_exits_on_eoferror(self, mock_config: MagicMock) -> None:
         """Worker loop should exit gracefully when queue raises EOFError."""

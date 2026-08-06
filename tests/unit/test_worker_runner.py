@@ -903,3 +903,55 @@ class TestRunWorkUnitEmptyFeaturePath:
         result = worker_runner.run_work_unit(unit)
         assert result.failed is True
         assert result.error is not None
+
+
+class TestWriteReportStatusEnum:
+    """Regression: _write_report must handle behave Status enum objects, not just strings."""
+
+    def test_failed_status_enum_detected(self, worker_runner: WorkerRunner) -> None:
+        """When feature.status is a behave Status enum (not a string),
+        _write_report must still detect 'failed' status correctly.
+        """
+        from behave_pool.work_unit import WorkUnit
+
+        unit = WorkUnit(
+            id="feature:broken.feature",
+            config=worker_runner.config,
+            feature_path="broken.feature",
+        )
+
+        feature = _make_mock_feature(name="Broken", filename="broken.feature")
+        feature.status = type("Status", (), {"name": "failed"})()
+        worker_runner.features = [feature]
+
+        import json as json_module
+
+        with patch.object(Path, "mkdir"), patch.object(Path, "write_text") as mock_write:
+            worker_runner._write_report(unit)
+            written = mock_write.call_args[0][0]
+            data = json_module.loads(written)
+            assert data["failed"] is True
+
+    def test_passed_status_enum_detected(self, worker_runner: WorkerRunner) -> None:
+        """When feature.status is a behave Status enum with name='passed',
+        _write_report must report failed=False.
+        """
+        from behave_pool.work_unit import WorkUnit
+
+        unit = WorkUnit(
+            id="feature:ok.feature",
+            config=worker_runner.config,
+            feature_path="ok.feature",
+        )
+
+        feature = _make_mock_feature(name="OK", filename="ok.feature")
+        feature.status = type("Status", (), {"name": "passed"})()
+        worker_runner.features = [feature]
+
+        import json as json_module
+
+        with patch.object(Path, "mkdir"), patch.object(Path, "write_text") as mock_write:
+            worker_runner._write_report(unit)
+            written = mock_write.call_args[0][0]
+            data = json_module.loads(written)
+            assert data["failed"] is False
