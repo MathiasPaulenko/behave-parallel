@@ -69,6 +69,21 @@ def _register_parallel_options() -> None:
             ),
         )
 
+    if "--shard" not in existing:
+        OPTIONS.append(
+            (
+                ("--shard",),
+                {
+                    "dest": "shard",
+                    "default": None,
+                    "help": (
+                        "Shard specification for CI: INDEX/TOTAL (e.g. '1/3'). "
+                        "Divides the suite into TOTAL shards and runs shard INDEX."
+                    ),
+                },
+            ),
+        )
+
 
 _register_parallel_options()
 
@@ -93,6 +108,8 @@ class ConfigSnapshot:
     parallel_balance: str = "lpt"
     parallel_timing_file: str = ".behave-pool-timing.json"
     parallel_report: str = "behave-pool-report.json"
+    shard_index: int | None = None
+    total_shards: int | None = None
     dry_run: bool = False
     use_nested_step_modules: bool = False
 
@@ -113,6 +130,8 @@ def snapshot_config(config: Configuration) -> ConfigSnapshot:
             getattr(config, "parallel_timing_file", None) or ".behave-pool-timing.json"
         ),
         parallel_report=str(getattr(config, "parallel_report", None) or "behave-pool-report.json"),
+        shard_index=getattr(config, "shard_index", None),
+        total_shards=getattr(config, "total_shards", None),
         dry_run=config.dry_run,
         use_nested_step_modules=getattr(config, "use_nested_step_modules", False),
     )
@@ -146,3 +165,16 @@ def add_parallel_options(config: Configuration) -> None:
 
     if not hasattr(config, "use_nested_step_modules"):
         config.use_nested_step_modules = False
+
+    shard_value = getattr(config, "shard", None)
+    if shard_value is not None:
+        from behave_pool.shard import parse_shard_string
+
+        shard_cfg = parse_shard_string(str(shard_value))
+        config.shard_index = shard_cfg.shard_index
+        config.total_shards = shard_cfg.total_shards
+    else:
+        if not hasattr(config, "shard_index"):
+            config.shard_index = None
+        if not hasattr(config, "total_shards"):
+            config.total_shards = None

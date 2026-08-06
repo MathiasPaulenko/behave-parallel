@@ -11,7 +11,10 @@ class TestAddParallelOptions:
     def test_sets_defaults_on_plain_config(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         del config.parallel_scheme
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel == 1
         assert config.parallel_scheme == "feature"
@@ -19,7 +22,10 @@ class TestAddParallelOptions:
     def test_preserves_existing_jobs(self) -> None:
         config = MagicMock()
         config.jobs = 4
+        config.shard = None
         config.parallel_scheme = "scenario"
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel == 4
         assert config.parallel_scheme == "scenario"
@@ -27,7 +33,10 @@ class TestAddParallelOptions:
     def test_sets_parallel_scheme_default_when_only_jobs_set(self) -> None:
         config = MagicMock()
         config.jobs = 2
+        config.shard = None
         del config.parallel_scheme
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel == 2
         assert config.parallel_scheme == "feature"
@@ -35,47 +44,65 @@ class TestAddParallelOptions:
     def test_jobs_none_defaults_to_1(self) -> None:
         config = MagicMock()
         config.jobs = None
+        config.shard = None
         del config.parallel_scheme
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel == 1
 
     def test_sets_parallel_balance_default(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         del config.parallel_scheme
         del config.parallel_balance
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel_balance == "lpt"
 
     def test_preserves_existing_parallel_balance(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         config.parallel_scheme = "feature"
         config.parallel_balance = "fifo"
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel_balance == "fifo"
 
     def test_sets_parallel_timing_file_default(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         del config.parallel_scheme
         del config.parallel_timing_file
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel_timing_file == ".behave-pool-timing.json"
 
     def test_preserves_existing_parallel_timing_file(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         config.parallel_scheme = "feature"
         config.parallel_timing_file = "custom.json"
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.parallel_timing_file == "custom.json"
 
     def test_sets_use_nested_step_modules_default(self) -> None:
         config = MagicMock()
         config.jobs = 1
+        config.shard = None
         del config.parallel_scheme
         del config.use_nested_step_modules
+        del config.shard_index
+        del config.total_shards
         add_parallel_options(config)
         assert config.use_nested_step_modules is False
 
@@ -95,6 +122,8 @@ class TestSnapshotConfig:
         config.parallel_timing_file = "custom.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.base_dir == "features"
@@ -146,6 +175,8 @@ class TestSnapshotConfigNoneBaseDir:
         config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.base_dir == "features"
@@ -173,6 +204,8 @@ class TestSnapshotConfigLangNone:
         config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.lang is None
@@ -201,6 +234,8 @@ class TestSnapshotConfigPathObjects:
         config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert all(isinstance(p, str) for p in snap.paths)
@@ -230,6 +265,8 @@ class TestSnapshotConfigBaseDirPath:
         config.parallel_timing_file = ".behave-pool-timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert isinstance(snap.base_dir, str)
@@ -261,6 +298,8 @@ class TestSnapshotConfigPathFields:
         config.parallel_timing_file = Path(".timing.json")
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert isinstance(snap.steps_dir, str)
@@ -288,6 +327,8 @@ class TestSnapshotConfigPathFields:
         config.parallel_timing_file = None
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.steps_dir == "steps"
@@ -312,6 +353,8 @@ class TestSnapshotConfigPathFields:
         config.parallel_timing_file = ".timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.parallel == 4
@@ -334,6 +377,8 @@ class TestSnapshotConfigPathFields:
         config.parallel_timing_file = ".timing.json"
         config.dry_run = False
         config.use_nested_step_modules = False
+        config.shard_index = None
+        config.total_shards = None
 
         snap = snapshot_config(config)
         assert snap.parallel == 1
