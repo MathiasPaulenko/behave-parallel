@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Mathias Paulenko" }]
+authors = [{ name = "Mathias Paulenko", email = "mathias.paulenko@outlook.com" }]
 keywords = ["behave", "bdd", "parallel", "multiprocessing", "testing", "runner"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
