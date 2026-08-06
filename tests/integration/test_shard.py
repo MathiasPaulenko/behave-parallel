@@ -163,9 +163,7 @@ class TestShardSequential:
         for i in range(1, 5):
             for j in range(i + 1, 5):
                 overlap = shard_features[i] & shard_features[j]
-                assert not overlap, (
-                    f"Shards {i} and {j} overlap on features: {overlap}"
-                )
+                assert not overlap, f"Shards {i} and {j} overlap on features: {overlap}"
 
 
 @pytest.mark.integration
@@ -218,17 +216,13 @@ class TestShardSingle:
         rc, stdout, stderr = _run_behave(FIXTURES_SIMPLE, shard="1/1", parallel=1)
         assert rc == 0, f"Exit code {rc}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
         features = _extract_features_from_output(stdout)
-        assert features == set(ALL_FEATURE_NAMES), (
-            f"Expected all features, got {features}"
-        )
+        assert features == set(ALL_FEATURE_NAMES), f"Expected all features, got {features}"
 
     def test_shard_1_of_1_parallel_4_runs_all_features(self) -> None:
         rc, stdout, stderr = _run_behave(FIXTURES_SIMPLE, shard="1/1", parallel=4)
         assert rc == 0, f"Exit code {rc}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
         features = _extract_features_from_report(FIXTURES_SIMPLE)
-        assert features == set(ALL_FEATURE_NAMES), (
-            f"Expected all features, got {features}"
-        )
+        assert features == set(ALL_FEATURE_NAMES), f"Expected all features, got {features}"
 
 
 @pytest.mark.integration

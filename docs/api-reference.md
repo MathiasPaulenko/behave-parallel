@@ -138,7 +138,7 @@ failed = run_with_shard(config)
 from behave_pool.shard import parse_shard_string
 
 config = parse_shard_string("2/3")
-print(config.shard_index)   # 2
+print(config.shard_index)  # 2
 print(config.total_shards)  # 3
 ```
 

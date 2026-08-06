@@ -47,3 +47,4 @@ Thumbs.db
 # behave-pool temp files
 .behave-pool-timing.json
 tmp/
+behave-pool-report.json

@@ -78,10 +78,7 @@ def parse_shard_string(value: str) -> ShardConfig:
     """
     match = _SHARD_RE.match(value.strip())
     if not match:
-        msg = (
-            f"Invalid shard format {value!r}. "
-            "Expected 'INDEX/TOTAL' (e.g. '1/3')."
-        )
+        msg = f"Invalid shard format {value!r}. Expected 'INDEX/TOTAL' (e.g. '1/3')."
         raise ShardError(msg)
 
     shard_index = int(match.group("index"))
@@ -107,9 +104,7 @@ def validate_shard(shard_index: int, total_shards: int) -> None:
         msg = f"shard_index must be >= 1, got {shard_index}"
         raise ShardError(msg)
     if shard_index > total_shards:
-        msg = (
-            f"shard_index ({shard_index}) must be <= total_shards ({total_shards})"
-        )
+        msg = f"shard_index ({shard_index}) must be <= total_shards ({total_shards})"
         raise ShardError(msg)
 
 

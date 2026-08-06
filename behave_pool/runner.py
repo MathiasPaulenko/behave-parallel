@@ -167,9 +167,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         """
         shard_index = int(getattr(self.config, "shard_index", 0))
         total_shards = int(getattr(self.config, "total_shards", 0))
-        sorted_features = sorted(
-            features, key=lambda f: getattr(f, "filename", "") or ""
-        )
+        sorted_features = sorted(features, key=lambda f: getattr(f, "filename", "") or "")
         from behave_pool.shard import split_shards
 
         return split_shards(sorted_features, shard_index, total_shards)
@@ -195,6 +193,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
                 total_shards,
                 selected_count,
             )
+
     def _sort_by_duration(self, units: list[WorkUnit]) -> list[WorkUnit]:
         """Sort work units by historical duration (LPT) or keep FIFO order.
 
