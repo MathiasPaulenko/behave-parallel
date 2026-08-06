@@ -478,23 +478,25 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+        shard: ["1/3", "2/3", "3/3"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
-      - run: behave --runner=parallel --parallel 4 features/
+      - run: behave --runner=parallel --parallel 4 --shard ${{ matrix.shard }} features/
 ```
 
 ### GitLab CI
 
 ```yaml
 test:
+  parallel: 3
   image: python:3.12
   script:
     - pip install behave-pool
-    - behave --runner=parallel --parallel 4 features/
+    - behave --runner=parallel --parallel 4 --shard ${CI_NODE_INDEX}/${CI_NODE_TOTAL} features/
 ```
 
 ### Jenkins
@@ -589,3 +591,48 @@ store.update("feature:features/login.feature", 1.45)
 saved = store.save_if_changed()
 print(f"Saved: {saved}")
 ```
+
+## Example 6: Sharding across CI runners
+
+Split the test suite across 3 CI runners, each with 4 local workers:
+
+### CLI
+
+```bash
+# Runner 1
+behave --runner=parallel --parallel 4 --shard 1/3 features/
+
+# Runner 2
+behave --runner=parallel --parallel 4 --shard 2/3 features/
+
+# Runner 3
+behave --runner=parallel --parallel 4 --shard 3/3 features/
+```
+
+### Python API
+
+```python
+from behave_pool import ShardConfig, run_with_shard
+
+config = ShardConfig(
+    shard_index=1,
+    total_shards=3,
+    features_dir="features/",
+    parallel=4,
+)
+failed = run_with_shard(config)
+```
+
+### With @serial and --tags
+
+Sharding composes with `@serial` tags and `--tags` filtering:
+
+```bash
+# Tag filtering applies first, then sharding
+behave --runner=parallel --parallel 4 \
+    --tags @smoke \
+    --shard 1/3 \
+    features/
+```
+
+Serial scenarios within the shard run sequentially after the parallel phase.

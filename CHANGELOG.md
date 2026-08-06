@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Sharding support** for CI parallelism across multiple machines.
+  New `--shard INDEX/TOTAL` CLI option divides the test suite into
+  `TOTAL` contiguous shards and executes only shard `INDEX`.
+  Compatible with `--parallel` (local parallelism within a shard),
+  `@serial` tag (serial scenarios within a shard run sequentially),
+  and `--tags` (tag filtering applies before sharding).
+  Python API: `ShardConfig` dataclass and `run_with_shard()` function.
+
 ## [1.0.0] - 2026-07-31
 
 ### Added

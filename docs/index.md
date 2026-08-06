@@ -16,6 +16,8 @@ suites grow, wall-clock time becomes a bottleneck. `behave-pool` solves this by:
   minimizing total wall-clock time.
 - Supporting **`@serial` tags** for scenarios that cannot run in parallel
   (database migrations, shared resources, etc.).
+- Providing **sharding** (`--shard INDEX/TOTAL`) to split the suite across
+  CI runners for distributed parallelism.
 
 ## Features
 
@@ -25,6 +27,7 @@ suites grow, wall-clock time becomes a bottleneck. `behave-pool` solves this by:
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
 - **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
+- **Sharding** — `--shard INDEX/TOTAL` splits the suite across CI runners. Deterministic, compatible with `--parallel` and `@serial`.
 - **Unified JSON report** — Merges all worker reports into a single `behave-modern-json-report` ExecutionReport (schema v1.1.0) with statistics, environment info, and full feature/scenario/step details.
 - **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`. The unified report is directly consumable by any tool in the ecosystem.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
@@ -85,6 +88,7 @@ execution with no overhead.
 - [Getting started](getting-started.md) — Installation and first run
 - [Configuration](configuration.md) — All CLI options and `behave.ini` settings
 - [Serial scenarios](serial-scenarios.md) — Using the `@serial` tag
+- [Sharding](sharding.md) — Splitting the suite across CI runners
 - [LPT balancing](lpt-balancing.md) — How LPT scheduling works
 - [Architecture](architecture.md) — Internal design and execution model
 - [Ecosystem](ecosystem.md) — Integration with other behave packages

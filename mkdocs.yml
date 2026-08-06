@@ -38,6 +38,7 @@ nav:
   - Getting started: getting-started.md
   - Configuration: configuration.md
   - Serial scenarios: serial-scenarios.md
+  - Sharding: sharding.md
   - LPT balancing: lpt-balancing.md
   - Architecture: architecture.md
   - Ecosystem: ecosystem.md

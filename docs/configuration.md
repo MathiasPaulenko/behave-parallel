@@ -212,6 +212,49 @@ environment info, and full feature/scenario/step details:
     tool built for that ecosystem (HTML formatters, dashboards, AI analyzers)
     can consume the parallel report directly — no conversion needed.
 
+### `--shard`
+
+| | |
+|---|---|
+| **Default** | _(disabled)_ |
+| **Type** | string (`INDEX/TOTAL`) |
+| **Description** | Split the suite into `TOTAL` shards and run shard `INDEX` (1-based). |
+
+```bash
+# Run shard 1 of 3 with 4 local workers
+behave --runner=parallel --parallel 4 --shard 1/3 features/
+
+# Run shard 2 of 3
+behave --runner=parallel --parallel 4 --shard 2/3 features/
+```
+
+Sharding divides work units into `TOTAL` contiguous groups. The first
+`len % TOTAL` shards receive one extra work unit. Work units are sorted
+deterministically by ID before splitting, ensuring reproducible shard
+assignment across machines.
+
+!!! note "Compatibility"
+    Sharding composes with all other features:
+    
+    - **`--parallel`**: local parallelism within each shard.
+    - **`@serial`**: serial scenarios run sequentially within the shard.
+    - **`--tags`**: tag filtering applies before sharding.
+
+!!! warning "Validation"
+    Invalid shard values raise `ShardError`:
+    
+    - `shard_index` must be in `[1, total_shards]`.
+    - `total_shards` must be `>= 1`.
+    - Format must be `INDEX/TOTAL` (e.g. `1/3`, not `1-3` or `1of3`).
+
+Output includes shard metadata for CI visibility:
+
+```
+Shard 1/3 — 4 scenarios selected (of 10 total)
+```
+
+---
+
 ## behave.ini configuration
 
 All options can be set permanently in `behave.ini`:
@@ -223,6 +266,7 @@ parallel-scheme = feature
 parallel-balance = lpt
 parallel-timing-file = .behave-pool-timing.json
 parallel-report = behave-pool-report.json
+shard = 1/3
 
 [behave.runners]
 parallel = behave_pool:ParallelRunner
@@ -269,3 +313,4 @@ is done through CLI options or `behave.ini`.
 | `--parallel-scheme` | `feature` | `feature` |
 | `--parallel-balance` | `lpt` | `lpt`, `fifo` |
 | `--parallel-timing-file` | `.behave-pool-timing.json` | any file path |
+| `--shard` | _(disabled)_ | `INDEX/TOTAL` (e.g. `1/3`) |

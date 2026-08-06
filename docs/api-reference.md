@@ -115,6 +115,46 @@ for unit in iterator.iterate():
 
 ::: behave_pool.iterator
 
+## Sharding
+
+`ShardConfig` configures sharding for CI parallelism. `run_with_shard` is a
+convenience function that creates a `ParallelRunner` with shard settings.
+
+```python
+from behave_pool import ShardConfig, run_with_shard
+
+config = ShardConfig(
+    shard_index=1,
+    total_shards=3,
+    features_dir="features/",
+    parallel=4,
+)
+failed = run_with_shard(config)
+```
+
+`parse_shard_string` parses `INDEX/TOTAL` strings:
+
+```python
+from behave_pool.shard import parse_shard_string
+
+config = parse_shard_string("2/3")
+print(config.shard_index)   # 2
+print(config.total_shards)  # 3
+```
+
+`split_shards` divides a sorted list into contiguous groups:
+
+```python
+from behave_pool.shard import split_shards
+
+items = list(range(10))
+shard1 = split_shards(items, 1, 3)  # [0, 1, 2, 3]
+shard2 = split_shards(items, 2, 3)  # [4, 5, 6]
+shard3 = split_shards(items, 3, 3)  # [7, 8, 9]
+```
+
+::: behave_pool.shard
+
 ## Worker
 
 `WorkerRunner` executes work units inside an isolated worker process.

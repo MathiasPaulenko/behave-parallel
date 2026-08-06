@@ -19,6 +19,7 @@ method for clean interpreter state on every platform.
 - **@serial tag** — Non-parallelizable scenarios run sequentially after the parallel phase.
 - **LPT load balancing** — Historical durations for optimal work distribution.
 - **Timing persistence** — `.behave-pool-timing.json` stores durations between runs.
+- **Sharding** — Split the suite across CI runners with `--shard INDEX/TOTAL`. Deterministic, compatible with `--parallel` and `@serial`.
 - **Unified JSON report** — Merges all worker reports into a single `behave-modern-json-report` ExecutionReport (schema v1.1.0) with statistics, environment info, and full feature/scenario/step details.
 - **Ecosystem integration** — Optional `behave-priority`, `behave-modern-json-report`. The unified report is directly consumable by any tool in the ecosystem.
 - **Zero heavy dependencies** — Only stdlib `multiprocessing` + `behave>=1.3.0`.
@@ -83,6 +84,7 @@ results, persists timings, and returns the aggregated exit code.
 | `--parallel-balance` | `lpt` | Work ordering: `lpt` (longest first) or `fifo` (insertion order). |
 | `--parallel-timing-file` | `.behave-pool-timing.json` | Path to timing file for LPT balancing. |
 | `--parallel-report` | `behave-pool-report.json` | Path to unified JSON report (behave-modern-json-report format). |
+| `--shard INDEX/TOTAL` | _(disabled)_ | Run only shard `INDEX` of `TOTAL` for CI parallelism across machines. |
 
 ## Usage
 
@@ -142,6 +144,52 @@ Any tool built for the `behave-modern-json-report` ecosystem (HTML formatters,
 dashboards, AI analyzers) can consume the parallel report directly — no
 conversion needed.
 
+### Sharding
+
+Split the test suite across multiple CI runners. Each runner executes
+only its assigned shard:
+
+```bash
+# Runner 1 of 3
+behave --runner=parallel --parallel 4 --shard 1/3 features/
+
+# Runner 2 of 3
+behave --runner=parallel --parallel 4 --shard 2/3 features/
+
+# Runner 3 of 3
+behave --runner=parallel --parallel 4 --shard 3/3 features/
+```
+
+Sharding composes with all other features:
+
+- **`--parallel`**: local parallelism within each shard.
+- **`@serial`**: serial scenarios run sequentially within the shard.
+- **`--tags`**: tag filtering applies before sharding.
+
+The algorithm sorts work units deterministically by ID, then splits
+them into `TOTAL` contiguous groups. The first `len % TOTAL` shards
+receive one extra work unit.
+
+Output includes shard metadata:
+
+```
+Shard 1/3 — 4 scenarios selected (of 10 total)
+```
+
+Python API:
+
+```python
+from behave_pool import ShardConfig, run_with_shard
+
+config = ShardConfig(
+    shard_index=1,
+    total_shards=3,
+    features_dir="features/",
+    parallel=4,
+)
+failed = run_with_shard(config)
+```
+
 ### behave.ini configuration
 
 All CLI options can also be set in `behave.ini`:
@@ -153,6 +201,7 @@ parallel-scheme = feature
 parallel-balance = lpt
 parallel-timing-file = .behave-pool-timing.json
 parallel-report = behave-pool-report.json
+shard = 1/3
 ```
 
 ## Requirements

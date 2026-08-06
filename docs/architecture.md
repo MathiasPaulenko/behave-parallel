@@ -6,20 +6,20 @@ execution pipeline works.
 ## Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      ParallelRunner                          │
-│                     (coordinator process)                    │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐  │
-│  │  _plan() │→│ _split() │→│ _dispatch()│→│ _collect()│  │
-│  └──────────┘  └──────────┘  └───────────┘  └───────────┘  │
-│       │             │              │               │        │
-│       │             │              │               │        │
-│  parse features  separate @serial  launch workers  drain    │
-│  create units    from parallel    enqueue units    results  │
-│  sort by LPT                     join workers      persist  │
-│                                                   timings  │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                      ParallelRunner                               │
+│                     (coordinator process)                         │
+│                                                                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐  │
+│  │  _plan() │→│ _shard() │→│ _split() │→│ _dispatch()│→│ _collect()│  │
+│  └──────────┘  └──────────┘  └──────────┘  └───────────┘  └───────────┘  │
+│       │             │             │              │               │        │
+│       │             │             │              │               │        │
+│  parse features  filter to    separate @serial  launch workers  drain    │
+│  create units    shard slice  from parallel    enqueue units    results  │
+│  sort by LPT    (if --shard)                  join workers      persist  │
+│                                                                   timings  │
+└──────────────────────────────────────────────────────────────────┘
          │
     ┌────▼────┐  ┌────────┐  ┌────────┐
     │Worker 0 │  │Worker 1│  │Worker N│
@@ -49,6 +49,7 @@ entire pipeline.
 
 - Parse feature files and create `WorkUnit` objects.
 - Sort work units by LPT duration (or keep FIFO order).
+- **Filter work units to the current shard** (when `--shard` is active).
 - Split work units into parallel and serial batches.
 - Launch worker processes and dispatch work.
 - Collect results and compute the final exit code.
