@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import multiprocessing
 import queue
-import shutil
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,6 +15,7 @@ from behave.runner import Runner, make_formatters, parse_features
 from behave_pool.config import add_parallel_options, snapshot_config
 from behave_pool.iterator import WorkUnitIterator
 from behave_pool.result import WorkerResult
+from behave_pool.shard import select_shard_work_units
 from behave_pool.timing import TimingStore
 from behave_pool.worker import WorkerProcess
 
@@ -67,6 +68,11 @@ class ParallelRunner(Runner):  # type: ignore[misc]
             filename for filename in self.feature_locations() if not self.config.exclude(filename)
         ]
         features = parse_features(feature_locations, language=self.config.lang)
+
+        if self._is_sharding_active():
+            features = self._filter_features_by_shard(features)
+            self._log_shard_info(len(features))
+
         self.features.extend(features)
 
         stream_openers = self.config.outputs
@@ -75,7 +81,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         return failed
 
     def _run_parallel(self) -> bool:
-        """Execute the parallel pipeline: plan -> split -> dispatch -> collect."""
+        """Execute the parallel pipeline: plan -> shard -> split -> dispatch -> collect."""
         ctx = multiprocessing.get_context("spawn")
         task_queue: Any = ctx.JoinableQueue()
         result_queue: Any = ctx.Queue()
@@ -83,9 +89,11 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         try:
             work_units = self._plan()
+            if self._is_sharding_active():
+                work_units = self._apply_shard(work_units)
             parallel_batch, serial_batch = self._split_by_serial_tag(work_units)
             dispatched = self._dispatch(
-                task_queue, result_queue, stop_event, parallel_batch, serial_batch
+                task_queue, result_queue, stop_event, parallel_batch, serial_batch, ctx
             )
             return self._collect(result_queue, dispatched)
         finally:
@@ -120,6 +128,73 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         return work_units
 
+    def _is_sharding_active(self) -> bool:
+        """Check whether sharding is enabled for this run."""
+        shard_index = getattr(self.config, "shard_index", None)
+        total_shards = getattr(self.config, "total_shards", None)
+        return shard_index is not None and total_shards is not None
+
+    def _apply_shard(self, work_units: list[WorkUnit]) -> list[WorkUnit]:
+        """Filter work units to only those in the current shard.
+
+        Work units are sorted by ``id`` for deterministic splitting, then
+        the shard slice is selected and the shard metadata is logged.
+
+        Args:
+            work_units: All planned work units.
+
+        Returns:
+            Work units belonging to the current shard.
+        """
+        shard_index = int(getattr(self.config, "shard_index", 0))
+        total_shards = int(getattr(self.config, "total_shards", 0))
+        selected = select_shard_work_units(work_units, shard_index, total_shards)
+        self._log_shard_info(len(selected), total=len(work_units))
+        return selected
+
+    def _filter_features_by_shard(self, features: list[Any]) -> list[Any]:
+        """Filter parsed features to only those in the current shard.
+
+        In sequential mode, sharding operates at feature level: features are
+        sorted by ``filename`` (matching the parallel mode's work-unit id sort)
+        and split into shards.  Only features in the current shard are kept.
+
+        Args:
+            features: All parsed features.
+
+        Returns:
+            Features belonging to the current shard.
+        """
+        shard_index = int(getattr(self.config, "shard_index", 0))
+        total_shards = int(getattr(self.config, "total_shards", 0))
+        sorted_features = sorted(
+            features, key=lambda f: getattr(f, "filename", "") or ""
+        )
+        from behave_pool.shard import split_shards
+
+        return split_shards(sorted_features, shard_index, total_shards)
+
+    def _log_shard_info(self, selected_count: int, total: int | None = None) -> None:
+        """Log shard metadata for visibility in CI output."""
+        shard_index = getattr(self.config, "shard_index", None)
+        total_shards = getattr(self.config, "total_shards", None)
+        if shard_index is None or total_shards is None:
+            return
+        if total is not None:
+            logger.info(
+                "Shard %d/%d — %d scenarios selected (of %d total)",
+                shard_index,
+                total_shards,
+                selected_count,
+                total,
+            )
+        else:
+            logger.info(
+                "Shard %d/%d — %d features selected",
+                shard_index,
+                total_shards,
+                selected_count,
+            )
     def _sort_by_duration(self, units: list[WorkUnit]) -> list[WorkUnit]:
         """Sort work units by historical duration (LPT) or keep FIFO order.
 
@@ -170,6 +245,7 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         stop_event: Any,
         parallel_batch: list[WorkUnit],
         serial_batch: list[WorkUnit],
+        ctx: Any,
     ) -> list[WorkUnit]:
         """Two-phase dispatch: parallel first, then serial.
 
@@ -182,7 +258,6 @@ class ParallelRunner(Runner):  # type: ignore[misc]
         n_workers = self.config.parallel
         config_snapshot = snapshot_config(self.config)
         dispatched: list[WorkUnit] = []
-        ctx = multiprocessing.get_context("spawn")
 
         # -- Phase 1: parallel batch with N workers.
         if parallel_batch:
@@ -392,7 +467,12 @@ class ParallelRunner(Runner):  # type: ignore[misc]
 
         tmp_dir = Path("tmp")
         if tmp_dir.is_dir():
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            for report_file in tmp_dir.glob("worker_*.json"):
+                with contextlib.suppress(OSError):
+                    report_file.unlink()
+            if not any(tmp_dir.iterdir()):
+                with contextlib.suppress(OSError):
+                    tmp_dir.rmdir()
 
     def _compute_statistics(self, features: list[dict[str, Any]]) -> dict[str, Any]:
         """Compute aggregate statistics from merged feature dicts."""

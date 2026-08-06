@@ -36,7 +36,11 @@ def mock_config() -> MagicMock:
     config.dry_run = False
     config.use_nested_step_modules = False
     config.parallel_balance = "lpt"
+    config.parallel_report = "behave-pool-report.json"
     config.parallel_timing_file = ".behave-pool-timing.json"
+    config.shard = None
+    config.shard_index = None
+    config.total_shards = None
     config.exclude = MagicMock(return_value=False)
     return config
 
@@ -284,7 +288,10 @@ class TestDispatch:
                 mw.is_alive.return_value = False
             mock_wp_cls.side_effect = mock_workers
 
-            dispatched = runner._dispatch(task_queue, result_queue, stop_event, parallel_batch, [])
+            ctx = multiprocessing.get_context("spawn")
+            dispatched = runner._dispatch(
+                task_queue, result_queue, stop_event, parallel_batch, [], ctx
+            )
 
             assert mock_wp_cls.call_count == 3
             for w in mock_workers:
@@ -322,7 +329,10 @@ class TestDispatch:
                 mw.is_alive.return_value = False
             mock_wp_cls.side_effect = mock_workers
 
-            dispatched = runner._dispatch(task_queue, result_queue, stop_event, [], serial_batch)
+            ctx = multiprocessing.get_context("spawn")
+            dispatched = runner._dispatch(
+                task_queue, result_queue, stop_event, [], serial_batch, ctx
+            )
 
             # 0 workers for parallel phase (empty batch) + 1 for serial phase
             assert mock_wp_cls.call_count == 1
@@ -357,12 +367,14 @@ class TestDispatch:
                 mw.is_alive.return_value = False
             mock_wp_cls.side_effect = mock_workers
 
+            ctx = multiprocessing.get_context("spawn")
             dispatched = runner._dispatch(
                 task_queue,
                 result_queue,
                 stop_event,
                 parallel_batch,
                 serial_batch,
+                ctx,
             )
 
             # 2 workers for parallel + 1 for serial
@@ -385,7 +397,8 @@ class TestDispatch:
             patch("behave_pool.runner.WorkerProcess") as mock_wp_cls,
             patch.object(task_queue, "join"),
         ):
-            dispatched = runner._dispatch(task_queue, result_queue, stop_event, [], [])
+            ctx = multiprocessing.get_context("spawn")
+            dispatched = runner._dispatch(task_queue, result_queue, stop_event, [], [], ctx)
 
             # No parallel batch and no serial batch = 0 workers
             assert mock_wp_cls.call_count == 0
@@ -421,12 +434,14 @@ class TestDispatch:
                 mw.is_alive.return_value = False
             mock_wp_cls.side_effect = mock_workers
 
+            ctx = multiprocessing.get_context("spawn")
             dispatched = runner._dispatch(
                 task_queue,
                 result_queue,
                 stop_event,
                 parallel_batch,
                 serial_batch,
+                ctx,
             )
 
             # 2 workers for parallel + 0 for serial (stop_event set)
@@ -463,7 +478,10 @@ class TestDispatch:
                 mw.is_alive.return_value = True
             mock_wp_cls.side_effect = mock_workers
 
-            dispatched = runner._dispatch(task_queue, result_queue, stop_event, parallel_batch, [])
+            ctx = multiprocessing.get_context("spawn")
+            dispatched = runner._dispatch(
+                task_queue, result_queue, stop_event, parallel_batch, [], ctx
+            )
 
             for w in mock_workers:
                 w.join.assert_called_once_with(timeout=300)
@@ -502,7 +520,10 @@ class TestDispatch:
             mock_worker.is_alive.return_value = True
             mock_wp_cls.return_value = mock_worker
 
-            dispatched = runner._dispatch(task_queue, result_queue, stop_event, [], serial_batch)
+            ctx = multiprocessing.get_context("spawn")
+            dispatched = runner._dispatch(
+                task_queue, result_queue, stop_event, [], serial_batch, ctx
+            )
 
             mock_worker.join.assert_called_once_with(timeout=300)
             mock_worker.terminate.assert_called_once()
@@ -546,10 +567,12 @@ class TestCollect:
 
         with (
             patch("behave_pool.runner.Path.is_dir", return_value=True),
-            patch("behave_pool.runner.shutil.rmtree") as mock_rmtree,
+            patch("behave_pool.runner.Path.glob", return_value=[]),
+            patch("behave_pool.runner.Path.iterdir", return_value=iter([])),
+            patch("behave_pool.runner.Path.rmdir") as mock_rmdir,
         ):
             runner._collect(result_queue, [])
-            mock_rmtree.assert_called_once()
+            mock_rmdir.assert_called_once()
 
     def test_collect_missing_results_treated_as_failure(self, mock_config: MagicMock) -> None:
         """Missing results from crashed workers should cause failed=True."""
